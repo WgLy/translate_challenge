@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI 翻譯挑戰賽 V2 — 管理員控制面板">
+  <title>AI 翻譯挑戰賽 V2 — 管理員</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────── -->
+<header class="page-header">
+  <div class="logo">AI 翻譯挑戰賽 V2 — 管理員</div>
+  <div class="flex items-center gap-md">
+    <div id="phase-badge" class="badge badge-amber">LOBBY</div>
+    <div id="round-badge" class="badge badge-purple">R1</div>
+    <div id="conn-status">
+      <div class="pulse-dot green" id="conn-dot"></div>
+      <span id="conn-text">已連線</span>
+    </div>
+  </div>
+</header>
+
+<div class="main-container">
+
+  <!-- ── Score Bar ──────────────────────────────────────────────── -->
+  <div class="score-bar" id="score-bar">
+    <div class="score-team">
+      <span class="team-name" style="color:var(--team-a-color)">
+        TEAM A (<span id="score-team-a-id">?</span>)
+      </span>
+      <span class="score-value" style="color:var(--team-a-color)" id="score-a">0</span>
+    </div>
+    <div class="score-vs">VS</div>
+    <div class="score-team">
+      <span class="team-name" style="color:var(--team-b-color)">
+        TEAM B (<span id="score-team-b-id">?</span>)
+      </span>
+      <span class="score-value" style="color:var(--team-b-color)" id="score-b">0</span>
+    </div>
+  </div>
+
+  <!-- ── Tabs ─────────────────────────────────────────────────────── -->
+  <div class="admin-tabs mt-lg">
+    <button class="admin-tab active" onclick="switchTab('tab-status')">📋 遊戲狀態 & 隊伍</button>
+    <button class="admin-tab" onclick="switchTab('tab-review')" id="nav-review">🔍 翻譯審核</button>
+    <button class="admin-tab" onclick="switchTab('tab-settings')">⚙️ 參數設定</button>
+    <button class="admin-tab" onclick="switchTab('tab-advanced')">🏆 進階控制</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!--  TAB: STATUS                                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="tab-status" class="tab-content active">
+    
+    <!--  GAME STATUS OVERVIEW                                      -->
+    <div class="admin-section">
+      <div class="admin-section-title">📋 遊戲狀態</div>
+      <div class="glass" style="padding: var(--gap-md);">
+        <div class="admin-row">
+          <label>階段</label>
+          <span id="admin-phase" class="badge badge-cyan">LOBBY</span>
+        </div>
+        <div class="admin-row">
+          <label>回合</label>
+          <span id="admin-round">1</span>
+        </div>
+        <div class="admin-row">
+          <label>Team A 隊伍</label>
+          <span id="admin-team-a-id">未設定</span>
+          <span id="admin-team-a-ready" class="badge badge-amber">未準備</span>
+        </div>
+        <div class="admin-row">
+          <label>Team B 隊伍</label>
+          <span id="admin-team-b-id">未設定</span>
+          <span id="admin-team-b-ready" class="badge badge-amber">未準備</span>
+        </div>
+      </div>
+    </div>
+
+    <!--  TEAM DETAIL                                               -->
+    <div class="admin-section mt-lg" id="admin-team-detail">
+      <div class="admin-section-title">📝 隊伍詳情</div>
+      <div class="lobby-grid">
+        <!-- Team A Detail -->
+        <div class="glass" style="padding: var(--gap-md);">
+          <span class="label-sm" style="color:var(--team-a-color)">TEAM A</span>
+          <div class="admin-row mt-sm">
+            <label>主題</label>
+            <span id="admin-topic-a" class="text-muted">—</span>
+          </div>
+          <div class="admin-row">
+            <label>已確認編輯</label>
+            <span id="admin-confirmed-a" class="text-muted">否</span>
+          </div>
+          <div class="admin-row">
+            <label>技能操作數</label>
+            <span id="admin-actions-a" class="text-muted">0</span>
+          </div>
+        </div>
+        <!-- Team B Detail -->
+        <div class="glass" style="padding: var(--gap-md);">
+          <span class="label-sm" style="color:var(--team-b-color)">TEAM B</span>
+          <div class="admin-row mt-sm">
+            <label>主題</label>
+            <span id="admin-topic-b" class="text-muted">—</span>
+          </div>
+          <div class="admin-row">
+            <label>已確認編輯</label>
+            <span id="admin-confirmed-b" class="text-muted">否</span>
+          </div>
+          <div class="admin-row">
+            <label>技能操作數</label>
+            <span id="admin-actions-b" class="text-muted">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!--  TAB: REVIEW                                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="tab-review" class="tab-content">
+    <div id="admin-review-section" class="admin-section">
+      <div class="admin-section-title">🔍 翻譯審核</div>
+
+      <!-- Team A Review -->
+      <div class="review-panel glass mb-md" id="review-panel-a">
+        <div class="flex items-center justify-between mb-sm">
+          <span class="label-sm" style="color:var(--team-a-color)">TEAM A 翻譯結果</span>
+          <div class="flex gap-sm">
+            <button class="btn btn-success btn-sm" onclick="adminApprove('team_a')">✅ 通過</button>
+            <button class="btn btn-danger btn-sm" onclick="adminReject('team_a')">🔄 退回重翻</button>
+          </div>
+        </div>
+        <div class="label-sm mt-sm">原始文本</div>
+        <div class="review-text" id="review-original-a"></div>
+        <div class="label-sm mt-sm">修改後文本</div>
+        <div class="review-text" id="review-edited-a"></div>
+        <div class="label-sm mt-sm">翻譯結果</div>
+        <div class="review-text" id="review-translated-a" style="color:var(--cyan)"></div>
+        <div class="mt-sm" id="review-status-a">
+          <span class="badge badge-amber">審核中</span>
+        </div>
+      </div>
+
+      <!-- Team B Review -->
+      <div class="review-panel glass mb-md" id="review-panel-b">
+        <div class="flex items-center justify-between mb-sm">
+          <span class="label-sm" style="color:var(--team-b-color)">TEAM B 翻譯結果</span>
+          <div class="flex gap-sm">
+            <button class="btn btn-success btn-sm" onclick="adminApprove('team_b')">✅ 通過</button>
+            <button class="btn btn-danger btn-sm" onclick="adminReject('team_b')">🔄 退回重翻</button>
+          </div>
+        </div>
+        <div class="label-sm mt-sm">原始文本</div>
+        <div class="review-text" id="review-original-b"></div>
+        <div class="label-sm mt-sm">修改後文本</div>
+        <div class="review-text" id="review-edited-b"></div>
+        <div class="label-sm mt-sm">翻譯結果</div>
+        <div class="review-text" id="review-translated-b" style="color:var(--pink)"></div>
+        <div class="mt-sm" id="review-status-b">
+          <span class="badge badge-amber">審核中</span>
+        </div>
+      </div>
+      
+      <div id="review-all-approved" class="text-center text-muted hidden mt-lg">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+        雙方翻譯皆已通過審核！
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!--  TAB: SETTINGS                                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="tab-settings" class="tab-content">
+    <div class="admin-section">
+      <div class="admin-section-title">⚙️ 參數設定</div>
+
+      <!-- Translation Count -->
+      <div class="glass" style="padding: var(--gap-md); margin-bottom: var(--gap-md);">
+        <div class="admin-row">
+          <label>翻譯次數</label>
+          <input type="number" class="input" id="input-trans-count" min="1" max="30" value="10" style="width:80px;">
+          <button class="btn btn-sm btn-ghost" onclick="setTranslationCount()">套用</button>
+        </div>
+      </div>
+
+      <!-- Skill Params -->
+      <div class="glass" style="padding: var(--gap-md); margin-bottom: var(--gap-md);">
+        <span class="label-sm">技能參數</span>
+        <div class="admin-row mt-sm">
+          <label>搬移長度</label>
+          <input type="number" class="input" id="input-move-length" min="1" max="50" value="10" style="width:80px;">
+          <button class="btn btn-sm btn-ghost" onclick="setSkillParam('搬移','segment_length')">套用</button>
+        </div>
+      </div>
+
+      <!-- AI Model -->
+      <div class="glass" style="padding: var(--gap-md); margin-bottom: var(--gap-md);">
+        <span class="label-sm">AI 模型</span>
+        <div class="admin-row mt-sm">
+          <label>目前模型</label>
+          <input type="text" class="input" id="input-model" list="model-list" value="qwen3:8b" style="width:200px;">
+          <datalist id="model-list"></datalist>
+          <button class="btn btn-sm btn-ghost" onclick="setModel()">套用</button>
+        </div>
+        <div class="admin-row">
+          <label>Ollama 狀態</label>
+          <span id="ollama-status" class="badge badge-amber">檢查中...</span>
+        </div>
+        <div class="admin-row" style="align-items: flex-start;">
+          <label style="padding-top: 4px;">掃描服務</label>
+          <div>
+            <button id="btn-scan-models" class="btn btn-sm btn-ghost" onclick="scanModels()">🔍 掃描</button>
+            <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">
+              掃描 <code>ollama_ports.json</code> 中設定的所有端點
+            </div>
+            <div id="scan-model-list" style="margin-top: 0.75rem;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Counts -->
+      <div class="glass" style="padding: var(--gap-md);">
+        <span class="label-sm">技能卡張數</span>
+        <div id="card-controls">
+          <!-- Dynamically generated per team -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!--  TAB: ADVANCED                                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="tab-advanced" class="tab-content">
+    <div class="admin-section">
+      <div class="admin-section-title">🏆 分數控制</div>
+      <div class="glass" style="padding: var(--gap-md);">
+        <div id="score-controls">
+          <!-- Dynamically generated per team -->
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-section mt-lg">
+      <div class="admin-section-title" style="color: var(--red);">⚠️ 危險操作</div>
+      <div class="glass" style="padding: var(--gap-md);">
+        <div class="flex gap-md flex-wrap">
+          <button class="btn btn-danger" onclick="adminReset()">🔄 完全重置遊戲</button>
+        </div>
+        <div class="mt-md">
+          <span class="label-sm">強制切換階段</span>
+          <div class="flex gap-sm mt-sm flex-wrap">
+            <button class="btn btn-sm btn-ghost" onclick="forcePhase('LOBBY')">LOBBY</button>
+            <button class="btn btn-sm btn-ghost" onclick="forcePhase('EDITING')">EDITING</button>
+            <button class="btn btn-sm btn-ghost" onclick="forcePhase('TRANSLATING')">TRANSLATING</button>
+            <button class="btn btn-sm btn-ghost" onclick="forcePhase('ADMIN_REVIEW')">ADMIN_REVIEW</button>
+            <button class="btn btn-sm btn-ghost" onclick="forcePhase('GUESSING')">GUESSING</button>
+            <button class="btn btn-sm btn-ghost" onclick="forcePhase('RESULT')">RESULT</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 60px;"></div>
+</div><!-- /.main-container -->
+
+<!-- ── Toast Container ──────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<!-- ── Scripts ───────────────────────────────────────────────────── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/static/js/admin.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+ollama_ports.json
+.env
