@@ -60,7 +60,7 @@ def api_status():
 
 @app.route("/ai_translate/dynamic_static/<path:filepath>")
 def dynamic_static(filepath):
-    """
+    r"""
     Bypass Nginx reverse proxy static file interception.
     URLs ending in _js or _css won't be caught by Nginx's ~ \.(js|css)$ regex,
     so they reach Flask safely.
