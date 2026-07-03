@@ -58,6 +58,23 @@ def api_status():
         "state": game_state_v2.get_state()["phase"],
     })
 
+@app.route("/ai_translate/api/debug_paths")
+def debug_paths():
+    import os
+    try:
+        static_files = os.listdir(app.static_folder)
+        js_files = os.listdir(os.path.join(app.static_folder, 'js'))
+    except Exception as e:
+        static_files = str(e)
+        js_files = str(e)
+        
+    return jsonify({
+        "root_path": app.root_path,
+        "static_folder": app.static_folder,
+        "static_files": static_files,
+        "js_files": js_files
+    })
+
 @app.route("/ai_translate/dynamic_static/<path:filepath>")
 def dynamic_static(filepath):
     r"""
