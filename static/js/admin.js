@@ -87,6 +87,7 @@ socket.on('connect', () => {
 socket.on('disconnect', () => {
     ui.badges.connDot.className = 'pulse-dot red';
     ui.badges.connText.innerText = '連線中斷';
+    adminPassword = null; // Reset password to prompt again on reconnect
 });
 
 async function checkApiStatus() {
