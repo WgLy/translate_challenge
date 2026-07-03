@@ -2,7 +2,7 @@
  * admin.js - Frontend logic for Admin Dashboard V2
  */
 
-const socket = io();
+const socket = io({ path: '/ai_translate/socket.io' });
 let gameState = null;
 
 // DOM Elements

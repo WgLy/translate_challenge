@@ -17,6 +17,7 @@ socketio = SocketIO(
     app,
     cors_allowed_origins="*",
     async_mode="threading",
+    path="/ai_translate/socket.io",
     logger=False,
     engineio_logger=False,
 )

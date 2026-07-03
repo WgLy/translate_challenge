@@ -2,7 +2,7 @@
  * team.js - Frontend logic for Team Page
  */
 
-const socket = io();
+const socket = io({ path: '/ai_translate/socket.io' });
 
 // Auto-detect side from URL path (/team/a or /team/b)
 let mySide = window.location.pathname.split('/').pop() === 'b' ? 'team_b' : 'team_a';
