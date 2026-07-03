@@ -2,7 +2,11 @@
  * team.js - Frontend logic for Team Page
  */
 
-const socket = io({ path: '/ai_translate/socket.io' });
+// Connect to Socket.IO backend, forcing polling if proxy blocks WebSockets
+const socket = io({ 
+    path: '/ai_translate/socket.io',
+    transports: ['polling']
+});
 
 // Auto-detect side from URL path (/team/a or /team/b)
 let mySide = window.location.pathname.split('/').pop() === 'b' ? 'team_b' : 'team_a';

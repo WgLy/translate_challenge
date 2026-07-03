@@ -2,7 +2,11 @@
  * admin.js - Frontend logic for Admin Dashboard V2
  */
 
-const socket = io({ path: '/ai_translate/socket.io' });
+// Connect to Socket.IO backend, forcing polling if proxy blocks WebSockets
+const socket = io({ 
+    path: '/ai_translate/socket.io',
+    transports: ['polling']
+});
 let gameState = null;
 
 // DOM Elements
