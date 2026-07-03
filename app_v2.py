@@ -65,18 +65,14 @@ def dynamic_static(filepath):
     URLs ending in _js or _css won't be caught by Nginx's ~ \.(js|css)$ regex,
     so they reach Flask safely.
     """
-    from flask import send_file
-    import os
-    actual_filename = filepath.replace("_js", ".js").replace("_css", ".css")
-    full_path = os.path.join(app.root_path, "static", actual_filename)
+    from flask import send_from_directory
+    actual_filename = filepath.replace("_js", ".js").replace("_css", ".css").lstrip('/')
     
     mimetype = "text/plain"
     if actual_filename.endswith(".js"): mimetype = "application/javascript"
     elif actual_filename.endswith(".css"): mimetype = "text/css"
     
-    if not os.path.exists(full_path):
-        return "Not found", 404
-    return send_file(full_path, mimetype=mimetype)
+    return send_from_directory(app.static_folder, actual_filename, mimetype=mimetype)
 
 @app.route("/ai_translate/api/scan_models")
 def api_scan_models():
