@@ -4,13 +4,13 @@ app_v2.py - Flask + Socket.IO main server for AI Translation Challenge V2
 
 import threading
 import logging
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, redirect
 from flask_socketio import SocketIO, emit, join_room, disconnect
 
 from game_state_v2 import game_state_v2
 import ai_service
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/ai_translate/static')
 app.config["SECRET_KEY"] = "translate_challenge_v2_secret_2026"
 
 socketio = SocketIO(
@@ -33,30 +33,31 @@ client_roles = {}
 
 @app.route("/")
 def index():
-    return redirect("/team/a")
+    return redirect("/ai_translate/team/a")
 
-@app.route("/team/<side>")
+@app.route("/ai_translate/team/<side>")
 def team_view(side):
     if side not in ["a", "b"]:
         return "Invalid side", 400
     return render_template("team.html")
 
-@app.route("/admin")
+@app.route("/ai_translate/admin")
 def admin_page():
     return render_template("admin.html")
 
-@app.route("/api/status")
+@app.route("/ai_translate/api/status")
 def api_status():
     ollama_ok = ai_service.test_connection()
     cfg = ai_service.get_config()
     return jsonify({
         "ollama": ollama_ok,
         "model": cfg["model"],
+        "review_model": cfg.get("review_model"),
         "url": cfg["url"],
         "state": game_state_v2.get_state()["phase"],
     })
 
-@app.route("/api/scan_models")
+@app.route("/ai_translate/api/scan_models")
 def api_scan_models():
     """掃描 ollama_ports.json 中所有 Ollama 服務，回傳可用模型列表（含各自 URL）。"""
     models = ai_service.scan_all_models()
@@ -176,11 +177,34 @@ def handle_apply_skill(data):
     
     if not skill: return
         
-    result = game_state_v2.apply_skill(side, skill, params)
-    if result.get("warning"):
-        emit("notification", {"type": "warning", "message": result["warning"]})
+    llm_skills = ["摘要", "誇飾", "插入名詞", "混亂語序"]
+    if skill in llm_skills:
+        result = game_state_v2.check_and_deduct_card(side, skill)
+        if result.get("warning"):
+            emit("notification", {"type": "warning", "message": result["warning"]})
+            return
+            
+        notify("✨ 正在呼叫 AI 施放技能，請稍候...", "info", room=side)
+        
+        def run_llm_skill():
+            current_text = game_state_v2.get_plain_edited_text(side)
+            new_text = ai_service.apply_llm_skill(current_text, skill)
+            
+            if new_text.startswith("[連接錯誤") or new_text.startswith("[逾時錯誤"):
+                game_state_v2.refund_card(side, skill)
+                notify("❌ 技能施放失敗 (AI連線異常)，卡片已退回", "error", room=side)
+            else:
+                game_state_v2.commit_llm_skill_result(side, skill, new_text)
+                broadcast_state()
+                notify("✅ 技能施放完成！", "success", room=side)
+                
+        threading.Thread(target=run_llm_skill, daemon=True).start()
     else:
-        broadcast_state()
+        result = game_state_v2.apply_skill(side, skill, params)
+        if result.get("warning"):
+            emit("notification", {"type": "warning", "message": result["warning"]})
+        else:
+            broadcast_state()
 
 @socketio.on("undo_skill")
 def handle_undo_skill(data):
@@ -245,7 +269,48 @@ def _run_translation(side: str, text: str, count: int):
         
         # Check if both are done
         if game_state_v2.both_translations_done():
-            notify("✅ 雙方翻譯完成！等待管理員審核。", "success")
+            state = game_state_v2.get_state()
+            if state.get("auto_review", False):
+                notify("⚙️ 正在進行 AI 自動審核...", "info")
+                
+                sides_to_approve = []
+                sides_to_reject = []
+                
+                for s in ["team_a", "team_b"]:
+                    if state[s].get("admin_approved"):
+                        continue
+                    text_s = state[s]["translated_text"]
+                    
+                    is_error = False
+                    if text_s:
+                        if any(k in text_s for k in ["[連接錯誤", "OpenRouter 錯誤", "Ollama 錯誤", "[逾時錯誤"]):
+                            is_error = True
+                        else:
+                            is_error = ai_service.evaluate_translation_error(text_s)
+                            
+                    if is_error:
+                        sides_to_reject.append(s)
+                    else:
+                        sides_to_approve.append(s)
+                
+                for s in sides_to_approve:
+                    game_state_v2.admin_approve(s)
+                
+                for s in sides_to_reject:
+                    game_state_v2.admin_reject(s)
+                    broadcast_state()
+                    notify(f"⚠️ 偵測到 {s} 翻譯出現連線等異常，自動退回重新翻譯...", "warning")
+                    
+                    count = state["translation_count"]
+                    t_text = game_state_v2.get_plain_edited_text(s)
+                    t = threading.Thread(target=_run_translation, args=(s, t_text, count), daemon=True)
+                    t.start()
+                
+                broadcast_state()
+                if game_state_v2.both_approved():
+                    notify("✅ 自動審核全部通過！請雙方開始猜題。", "success")
+            else:
+                notify("✅ 雙方翻譯完成！等待管理員審核。", "success")
     except Exception as e:
         logger.error(f"Translation error on {side}: {e}")
         notify(f"❌ 翻譯發生錯誤 ({side})：{e}", "error")
@@ -356,6 +421,15 @@ def handle_admin_set_translations(data):
     broadcast_state()
     notify(f"⚙️ 翻譯次數已設為 {count} 次", "info")
 
+@socketio.on("admin_set_auto_review")
+def handle_admin_set_auto_review(data):
+    if client_roles.get(request.sid) != "admin": return
+    enabled = bool(data.get("enabled"))
+    game_state_v2.admin_set_auto_review(enabled)
+    broadcast_state()
+    status = "開啟" if enabled else "關閉"
+    notify(f"⚙️ AI 自動審核已{status}", "info")
+
 @socketio.on("admin_set_skill_param")
 def handle_admin_set_skill_param(data):
     if client_roles.get(request.sid) != "admin": return
@@ -377,7 +451,16 @@ def handle_admin_set_model(data):
     if model:
         ai_service.set_model(model, url=url)
         cfg = ai_service.get_config()
-        notify(f"⚙️ 模型已切換為 {model}（{cfg['url']}）", "info")
+        notify(f"⚙️ 翻譯模型已切換為 {model}（{cfg['url']}）", "info")
+
+@socketio.on("admin_set_review_model")
+def handle_admin_set_review_model(data):
+    if client_roles.get(request.sid) != "admin": return
+    model = data.get("model")
+    url = data.get("url")
+    if model:
+        ai_service.set_review_model(model, url=url)
+        notify(f"⚙️ 審核模型已切換為 {model}", "info")
 
 @socketio.on("admin_reset")
 def handle_admin_reset():
@@ -399,7 +482,17 @@ def handle_admin_force_phase(data):
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+import argparse
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run AI Translation Challenge V2 Server")
+    parser.add_argument("--api", action="store_true", help="Use OpenRouter API instead of Ollama")
+    args = parser.parse_args()
+
+    if args.api:
+        ai_service.USE_OPENROUTER = True
+        logger.info("OpenRouter API mode enabled via --api flag.")
+
     logger.info("Starting AI Translation Challenge V2 Server...")
     logger.info("  Team A:   http://localhost:5000/team/a")
     logger.info("  Team B:   http://localhost:5000/team/b")

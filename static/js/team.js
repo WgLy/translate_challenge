@@ -301,10 +301,14 @@ function updateEditing() {
     const myCards = myState.cards || {};
     const registry = gameState.skill_registry || {};
     
-    ['增字', '刪字', '搬移'].forEach(skillName => {
+    ['增字', '刪字', '搬移', '摘要', '誇飾', '插入名詞', '混亂語序'].forEach(skillName => {
         const info = registry[skillName];
+        if (!info) return;
+        
         const count = myCards[skillName] || 0;
-        const isDisabled = count === 0 || locked;
+        if (count === 0) return; // Hide card if count is 0
+        
+        const isDisabled = locked;
         const isActive = editingMode === info.id;
         
         const card = document.createElement('div');
@@ -317,7 +321,14 @@ function updateEditing() {
         `;
         
         if (!isDisabled) {
-            card.onclick = () => toggleSkillMode(info.id, skillName);
+            // LLM skills trigger immediately, char skills require mode
+            if (['摘要', '誇飾', '插入名詞', '混亂語序'].includes(skillName)) {
+                card.onclick = () => {
+                    socket.emit('apply_skill', { side: mySide, skill: skillName, params: {} });
+                };
+            } else {
+                card.onclick = () => toggleSkillMode(info.id, skillName);
+            }
         }
         ui.edit.skills.appendChild(card);
     });
@@ -337,6 +348,7 @@ function updateEditing() {
             if (action.skill === '增字') desc = `插入 "${action.params.char}" 於 ${action.params.position}`;
             else if (action.skill === '刪字') desc = `刪除字元於 ${action.params.position}`;
             else if (action.skill === '搬移') desc = `搬移文字從 ${action.params.from_pos} 到 ${action.params.to_pos}`;
+            else desc = `使用 AI 修改文字`;
             
             el.innerHTML = `
                 <div class="action-desc">

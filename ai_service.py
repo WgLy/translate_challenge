@@ -19,6 +19,9 @@ import threading
 from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,14 @@ _THINK_RE = re.compile(r"<think>.*?</think>", flags=re.DOTALL)
 _model_lock = threading.Lock()
 _ollama_model: str = os.environ.get("OLLAMA_MODEL", "qwen3:8b")
 _ollama_url: str = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+
+USE_OPENROUTER = False
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.5-pro")
+
+_review_model: str = os.environ.get("REVIEW_MODEL", _ollama_model)
+_review_url: str = os.environ.get("REVIEW_URL", _ollama_url)
+OPENROUTER_REVIEW_MODEL = os.environ.get("OPENROUTER_REVIEW_MODEL", OPENROUTER_MODEL)
 
 
 # =====================================================================
@@ -82,21 +93,41 @@ def get_url() -> str:
 
 def set_model(model_name: str, url: str | None = None) -> None:
     """
-    運行時切換 Ollama 模型（管理員可用）。
+    運行時切換模型（管理員可用）。
     若提供 url，則同時切換至對應的服務端點。
-
-    Args:
-        model_name: 新的模型名稱，如 'qwen3:8b'。
-        url:        該模型所在的 Ollama 服務 URL（可選）。
     """
-    global _ollama_model, _ollama_url
+    global _ollama_model, _ollama_url, OPENROUTER_MODEL
     with _model_lock:
-        old_model = _ollama_model
-        old_url = _ollama_url
-        _ollama_model = model_name
-        if url:
-            _ollama_url = url
-    logger.info(f"Ollama 模型已切換: {old_model}@{old_url} → {model_name}@{_ollama_url}")
+        if USE_OPENROUTER:
+            old_model = OPENROUTER_MODEL
+            OPENROUTER_MODEL = model_name
+            logger.info(f"OpenRouter 模型已切換: {old_model} → {model_name}")
+        else:
+            old_model = _ollama_model
+            old_url = _ollama_url
+            _ollama_model = model_name
+            if url:
+                _ollama_url = url
+            logger.info(f"Ollama 模型已切換: {old_model}@{old_url} → {model_name}@{_ollama_url}")
+
+def get_review_model() -> str:
+    with _model_lock:
+        return OPENROUTER_REVIEW_MODEL if USE_OPENROUTER else _review_model
+
+def get_review_url() -> str:
+    with _model_lock:
+        return "https://openrouter.ai/api/v1" if USE_OPENROUTER else _review_url
+
+def set_review_model(model_name: str, url: str | None = None) -> None:
+    global _review_model, _review_url, OPENROUTER_REVIEW_MODEL
+    with _model_lock:
+        if USE_OPENROUTER:
+            OPENROUTER_REVIEW_MODEL = model_name
+        else:
+            _review_model = model_name
+            if url:
+                _review_url = url
+    logger.info(f"審核模型已切換為 {model_name}")
 
 
 # =====================================================================
@@ -110,9 +141,16 @@ def get_config() -> dict:
     Returns:
         dict: 包含 'url' 和 'model' 的字典。
     """
+    if USE_OPENROUTER:
+        return {
+            "url": "https://openrouter.ai/api/v1",
+            "model": OPENROUTER_MODEL,
+            "review_model": OPENROUTER_REVIEW_MODEL,
+        }
     return {
         "url": get_url(),
         "model": get_model(),
+        "review_model": get_review_model(),
     }
 
 
@@ -188,8 +226,46 @@ def scan_all_models() -> list[dict]:
 
 
 # =====================================================================
-#  底層 Ollama 調用
+#  底層 Ollama / OpenRouter 調用
 # =====================================================================
+
+def _call_openrouter(prompt: str, system_prompt: str = "You are a helpful translation assistant.") -> str:
+    """
+    同步調用 OpenRouter API 進行文本生成。
+    """
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": OPENROUTER_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.7
+    }
+
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=180)
+        if resp.status_code == 200:
+            text = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            # 清除可能殘留的 <think>...</think> 塊
+            text = _THINK_RE.sub("", text).strip()
+            return text
+        else:
+            logger.error(f"OpenRouter HTTP {resp.status_code}: {resp.text[:200]}")
+            return f"[OpenRouter 錯誤 {resp.status_code}]"
+    except requests.exceptions.Timeout:
+        logger.error("OpenRouter 請求逾時 (180s)")
+        return "[逾時錯誤]"
+    except requests.exceptions.ConnectionError:
+        logger.error("無法連接 OpenRouter 服務")
+        return "[連接錯誤: 無法連接到 OpenRouter 服務]"
+    except Exception as e:
+        logger.error(f"OpenRouter 調用異常: {e}")
+        return f"[連接錯誤: {e}]"
 
 def _call_ollama(prompt: str, system_prompt: str = "You are a helpful translation assistant.") -> str:
     """
@@ -238,6 +314,76 @@ def _call_ollama(prompt: str, system_prompt: str = "You are a helpful translatio
         logger.error(f"Ollama 調用異常: {e}")
         return f"[連接錯誤: {e}]"
 
+def apply_llm_skill(text: str, skill_name: str) -> str:
+    """
+    呼叫 LLM 進行技能文本變換。
+    """
+    prompts = {
+        "摘要": "請將下列文本進行精簡與摘要，保留核心意義即可。請直接輸出摘要結果，不要加入任何其他說明：",
+        "誇飾": "請將下列文本使用誇飾的語氣重新改寫，讓語氣變得極度誇張。請直接輸出改寫結果，不要加入任何其他說明：",
+        "插入名詞": "請在下列文本的任意位置隨機插入一些完全不相干的名詞，讓內容變得荒謬。請直接輸出改寫結果，不要加入任何其他說明：",
+        "混亂語序": "請將下列文本的語序打亂，重新排列字詞，造成語意混亂。請直接輸出改寫結果，不要加入任何其他說明："
+    }
+    
+    instruction = prompts.get(skill_name, "請重新改寫以下文本，不要加入任何說明：")
+    prompt = f"{instruction}\n\n文本：\n{text}"
+    
+    if USE_OPENROUTER:
+        return _call_openrouter(prompt, system_prompt="You are a helpful text rewriting assistant.")
+    else:
+        return _call_ollama(prompt, system_prompt="You are a helpful text rewriting assistant.")
+
+def evaluate_translation_error(text: str) -> bool:
+    """
+    使用獨立的審核模型判斷文本是否為「連線錯誤」或「系統錯誤」訊息。
+    回傳 True 代表「是錯誤訊息」，False 代表「是正常翻譯」。
+    """
+    prompt = (
+        "You are a quality assurance bot. Your task is to determine if the following text is an error message "
+        "(such as a connection error, API error, timeout, or system failure) instead of a valid translation. "
+        "Return ONLY the word 'YES' if it is an error message, or 'NO' if it looks like normal text.\n\n"
+        f"Text:\n{text}"
+    )
+    
+    if USE_OPENROUTER:
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": OPENROUTER_REVIEW_MODEL,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.0
+        }
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
+            if resp.status_code == 200:
+                result = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip().upper()
+                return "YES" in result
+        except Exception as e:
+            logger.error(f"OpenRouter Review Error: {e}")
+    else:
+        api_url = f"{get_review_url()}/api/generate"
+        payload = {
+            "model": get_review_model(),
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0.0}
+        }
+        try:
+            resp = requests.post(api_url, json=payload, timeout=30)
+            if resp.status_code == 200:
+                result = resp.json().get("response", "").strip().upper()
+                return "YES" in result
+        except Exception as e:
+            logger.error(f"Ollama Review Error: {e}")
+
+    # Fallback to keyword matching if API fails
+    return any(k in text for k in ["錯誤", "Error", "連線", "逾時", "OpenRouter", "Ollama", "[連接錯誤"])
+
 
 # =====================================================================
 #  遞歸翻譯核心邏輯
@@ -277,7 +423,10 @@ def recursive_translate(
             "Return ONLY the translated text, no explanation, no extra commentary.\n\n"
             f"Text:\n{current}"
         )
-        current = _call_ollama(prompt)
+        if USE_OPENROUTER:
+            current = _call_openrouter(prompt)
+        else:
+            current = _call_ollama(prompt)
 
         # 通知進度回調
         if progress_callback:
@@ -301,6 +450,9 @@ def test_connection() -> bool:
     Returns:
         True 表示連接正常，False 表示不可達。
     """
+    if USE_OPENROUTER:
+        return bool(OPENROUTER_API_KEY)
+
     try:
         resp = requests.get(f"{get_url()}/api/tags", timeout=5)
         return resp.status_code == 200

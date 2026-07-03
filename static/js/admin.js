@@ -60,6 +60,7 @@ const ui = {
         transCount: document.getElementById('input-trans-count'),
         moveLen: document.getElementById('input-move-length'),
         model: document.getElementById('input-model'),
+        reviewModel: document.getElementById('input-review-model'),
         ollamaStatus: document.getElementById('ollama-status'),
         cardControls: document.getElementById('card-controls'),
         scoreControls: document.getElementById('score-controls'),
@@ -90,7 +91,7 @@ socket.on('disconnect', () => {
 
 async function checkApiStatus() {
     try {
-        const res = await fetch('/api/status');
+        const res = await fetch('/ai_translate/api/status');
         const data = await res.json();
         
         ui.params.ollamaStatus.className = data.ollama ? 'badge badge-green' : 'badge badge-red';
@@ -100,6 +101,9 @@ async function checkApiStatus() {
         
         if (document.activeElement !== ui.params.model) {
             ui.params.model.value = data.model;
+        }
+        if (document.activeElement !== ui.params.reviewModel) {
+            ui.params.reviewModel.value = data.review_model;
         }
     } catch (e) {
         ui.params.ollamaStatus.className = 'badge badge-red';
@@ -119,7 +123,7 @@ window.scanModels = async function() {
     scannedModelMap = {};
 
     try {
-        const res = await fetch('/api/scan_models');
+        const res = await fetch('/ai_translate/api/scan_models');
         const data = await res.json();
         const models = data.models || [];
 
@@ -269,6 +273,11 @@ function updateUI() {
         ui.params.transCount.value = gameState.translation_count;
     }
     
+    const autoReviewToggle = document.getElementById("toggle-auto-review");
+    if (autoReviewToggle && gameState.auto_review !== undefined) {
+        autoReviewToggle.checked = gameState.auto_review;
+    }
+    
     if (document.activeElement !== ui.params.moveLen && gameState.skill_registry['搬移']) {
         ui.params.moveLen.value = gameState.skill_registry['搬移'].params.segment_length;
     }
@@ -357,6 +366,10 @@ window.setTranslationCount = function() {
     }
 };
 
+window.toggleAutoReview = function(enabled) {
+    socket.emit('admin_set_auto_review', { enabled: enabled });
+};
+
 window.setSkillParam = function(skill, param) {
     let val = null;
     if (skill === '搬移' && param === 'segment_length') {
@@ -374,6 +387,15 @@ window.setModel = function() {
         // 如果是經過掃描知道 URL，就一併傳送
         const url = scannedModelMap[model] || null;
         socket.emit('admin_set_model', { model, url });
+        setTimeout(checkApiStatus, 1000);
+    }
+};
+
+window.setReviewModel = function() {
+    const model = ui.params.reviewModel.value.trim();
+    if (model) {
+        const url = scannedModelMap[model] || null;
+        socket.emit('admin_set_review_model', { model, url });
         setTimeout(checkApiStatus, 1000);
     }
 };

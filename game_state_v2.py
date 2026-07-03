@@ -37,6 +37,38 @@ SKILL_REGISTRY = {
         "params": {"segment_length": 10},
         "icon": "🔀",
     },
+    "摘要": {
+        "id": "summarize",
+        "name": "摘要",
+        "description": "將文本進行精簡與摘要",
+        "default_count": 1,
+        "params": {},
+        "icon": "📝",
+    },
+    "誇飾": {
+        "id": "exaggerate",
+        "name": "誇飾",
+        "description": "將文本進行誇飾處理",
+        "default_count": 1,
+        "params": {},
+        "icon": "🎭",
+    },
+    "插入名詞": {
+        "id": "insert_noun",
+        "name": "插入名詞",
+        "description": "隨機在文本中插入一些不相干的名詞",
+        "default_count": 1,
+        "params": {},
+        "icon": "🔤",
+    },
+    "混亂語序": {
+        "id": "scramble",
+        "name": "混亂語序",
+        "description": "打亂文本的語序",
+        "default_count": 1,
+        "params": {},
+        "icon": "🌪️",
+    }
 }
 
 PHASE_LOBBY = "LOBBY"
@@ -60,6 +92,7 @@ def _empty_team_round() -> dict:
         "correct_index": None,   # 0~3
         "original_text": None,   # string
         "edited_text": [],       # list of dicts: {"char": str, "edited": bool}
+        "history": [],           # list of edited_text states for undo
         "skill_actions": [],     # list of dicts: {"skill": "...", "params": {...}}
         "translated_text": None, # string
         "translation_progress": 0,
@@ -104,6 +137,7 @@ class GameStateV2:
             preserved_teams = {} if full else copy.deepcopy(self._state.get("teams", {}))
             preserved_count = 10 if full else self._state.get("translation_count", 10)
             preserved_registry = copy.deepcopy(SKILL_REGISTRY) if full else copy.deepcopy(self._state.get("skill_registry", SKILL_REGISTRY))
+            preserved_auto_review = False if full else self._state.get("auto_review", False)
             
             # preserve team IDs in lobby if not full reset
             team_a_id = None
@@ -122,6 +156,7 @@ class GameStateV2:
                 "phase": PHASE_LOBBY,
                 "round_number": 1 if full else self._state.get("round_number", 1),
                 "translation_count": preserved_count,
+                "auto_review": preserved_auto_review,
                 "team_a": team_a_state,
                 "team_b": team_b_state,
                 "teams": preserved_teams,
@@ -265,6 +300,7 @@ class GameStateV2:
                     st["edited_text"] = [{"char": c, "edited": False} for c in text_obj["original"]]
                     break
                     
+            st["history"] = []
             st["skill_actions"] = []
             st["confirmed_edit"] = False
             
@@ -304,6 +340,7 @@ class GameStateV2:
             if cards[skill] > 0:
                 cards[skill] -= 1
                 
+            team_state["history"].append(copy.deepcopy(team_state["edited_text"]))
             team_state["edited_text"] = new_text_list
             team_state["skill_actions"].append({"skill": skill, "params": params})
             
@@ -366,7 +403,7 @@ class GameStateV2:
             if team_state["confirmed_edit"]:
                 return {"warning": "已確認編輯，無法撤銷"}
                 
-            if not team_state["skill_actions"]:
+            if not team_state["skill_actions"] or not team_state.get("history"):
                 return {"warning": "沒有可撤銷的操作"}
                 
             last_action = team_state["skill_actions"].pop()
@@ -379,13 +416,49 @@ class GameStateV2:
                 if skill in team["cards"] and team["cards"][skill] != -1:
                     team["cards"][skill] += 1
             
-            # Reconstruct text from original
-            text = [{"char": c, "edited": False} for c in team_state["original_text"]]
-            for action in team_state["skill_actions"]:
-                text = self._transform_text(text, action["skill"], action["params"])
-                
-            team_state["edited_text"] = text
+            # Restore previous state
+            team_state["edited_text"] = team_state["history"].pop()
             return {"success": True}
+
+    def check_and_deduct_card(self, side: str, skill: str) -> dict:
+        with self._lock:
+            if self._state["phase"] != PHASE_EDITING:
+                return {"warning": "目前不在編輯階段"}
+                
+            team_state = self._state[side]
+            if team_state["confirmed_edit"]:
+                return {"warning": "已確認編輯，無法再使用技能"}
+                
+            team_id = team_state["team_id"]
+            if not team_id:
+                return {"warning": "隊伍不存在"}
+                
+            team = self._get_team(team_id)
+            cards = team["cards"]
+            
+            if skill not in cards or cards[skill] == 0:
+                return {"warning": f"「{skill}」卡片不足！"}
+
+            # Deduct card temporarily
+            if cards[skill] > 0:
+                cards[skill] -= 1
+                
+            return {"success": True}
+
+    def refund_card(self, side: str, skill: str):
+        with self._lock:
+            team_id = self._state[side]["team_id"]
+            if team_id:
+                team = self._get_team(team_id)
+                if skill in team["cards"] and team["cards"][skill] != -1:
+                    team["cards"][skill] += 1
+
+    def commit_llm_skill_result(self, side: str, skill: str, new_text: str):
+        with self._lock:
+            team_state = self._state[side]
+            team_state["history"].append(copy.deepcopy(team_state["edited_text"]))
+            team_state["edited_text"] = [{"char": c, "edited": True} for c in new_text]
+            team_state["skill_actions"].append({"skill": skill, "params": {}})
 
     def confirm_edit(self, side: str) -> bool:
         with self._lock:
@@ -554,6 +627,10 @@ class GameStateV2:
         with self._lock:
             if skill in self._state["skill_registry"] and param in self._state["skill_registry"][skill]["params"]:
                 self._state["skill_registry"][skill]["params"][param] = value
+
+    def admin_set_auto_review(self, enabled: bool):
+        with self._lock:
+            self._state["auto_review"] = enabled
 
     def admin_reset(self):
         self.end_game_lock()

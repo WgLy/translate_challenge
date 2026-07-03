@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="AI 翻譯挑戰賽 V2 — 管理員控制面板">
-  <title>AI 翻譯挑戰賽 V2 — 管理員</title>
-  <link rel="stylesheet" href="/static/css/base.css">
+  <title>AI 翻譯挑戰賽 V2 — 後台管理</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
 </head>
 <body>
 
@@ -188,6 +188,10 @@
           <input type="number" class="input" id="input-trans-count" min="1" max="30" value="10" style="width:80px;">
           <button class="btn btn-sm btn-ghost" onclick="setTranslationCount()">套用</button>
         </div>
+        <div class="admin-row mt-sm">
+          <label>AI 自動審核</label>
+          <input type="checkbox" id="toggle-auto-review" onchange="toggleAutoReview(this.checked)" style="width: 20px; height: 20px; cursor: pointer;" title="自動檢查連線錯誤等非翻譯問題並退回">
+        </div>
       </div>
 
       <!-- Skill Params -->
@@ -202,15 +206,20 @@
 
       <!-- AI Model -->
       <div class="glass" style="padding: var(--gap-md); margin-bottom: var(--gap-md);">
-        <span class="label-sm">AI 模型</span>
+        <span class="label-sm">AI 模型設定</span>
         <div class="admin-row mt-sm">
-          <label>目前模型</label>
+          <label>翻譯模型</label>
           <input type="text" class="input" id="input-model" list="model-list" value="qwen3:8b" style="width:200px;">
           <datalist id="model-list"></datalist>
           <button class="btn btn-sm btn-ghost" onclick="setModel()">套用</button>
         </div>
+        <div class="admin-row mt-sm">
+          <label>審核模型</label>
+          <input type="text" class="input" id="input-review-model" list="model-list" value="qwen3:8b" style="width:200px;">
+          <button class="btn btn-sm btn-ghost" onclick="setReviewModel()">套用</button>
+        </div>
         <div class="admin-row">
-          <label>Ollama 狀態</label>
+          <label>連線狀態</label>
           <span id="ollama-status" class="badge badge-amber">檢查中...</span>
         </div>
         <div class="admin-row" style="align-items: flex-start;">
@@ -277,7 +286,7 @@
 
 <!-- ── Scripts ───────────────────────────────────────────────────── -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
-<script src="/static/js/admin.js"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 
 </body>
 </html>
