@@ -741,4 +741,13 @@ def handle_admin_force_phase(data):
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Run AI Translation Challenge V2 Server")
+    parser.add_argument("--api", action="store_true", help="Use OpenRouter API instead of Ollama")
+    args, unknown = parser.parse_known_args()
+
+    if args.api:
+        ai_service.USE_OPENROUTER = True
+        logger.info("OpenRouter API mode enabled via --api flag.")
+
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
