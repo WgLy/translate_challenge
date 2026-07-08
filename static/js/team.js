@@ -222,6 +222,11 @@ function updateScoreBar() {
     const labelB = document.getElementById('score-team-b-label');
     if (labelA) labelA.innerText = labels[0];
     if (labelB) labelB.innerText = labels[1];
+    
+    const transLabelA = document.getElementById('trans-label-a');
+    const transLabelB = document.getElementById('trans-label-b');
+    if (transLabelA) transLabelA.innerText = `${labels[0]} 翻譯中...`;
+    if (transLabelB) transLabelB.innerText = `${labels[1]} 翻譯中...`;
 }
 
 // ─── PHASE: LOBBY ────────────────────────────────────────────────────────────
@@ -254,12 +259,18 @@ function updateLobby() {
 window.setReady = function() {
     const teamId = ui.lobby.input.value.trim();
     
-    if (!teamId) {
-        showToast('請輸入隊伍編號', 'warning');
+    if (teamId === "") {
+        showToast('請輸入小隊編號', 'warning');
         return;
     }
     
-    socket.emit('set_ready', { side: mySide, team_id: parseInt(teamId) });
+    const val = parseInt(teamId);
+    if (isNaN(val) || val < 0 || val > 1000) {
+        showToast('小隊編號必須在 0 到 1000 之間', 'warning');
+        return;
+    }
+    
+    socket.emit('set_ready', { side: mySide, team_id: val });
 };
 
 window.cancelReady = function() {
@@ -755,6 +766,21 @@ socket.on('state_update', (state) => {
 function updateResult() {
     const a = gameState.team_a;
     const b = gameState.team_b;
+    
+    const matchIdToLabels = {
+        "ab": ["TEAM A", "TEAM B"],
+        "cd": ["TEAM C", "TEAM D"],
+        "ef": ["TEAM E", "TEAM F"],
+        "gh": ["TEAM G", "TEAM H"]
+    };
+    const currentMatchId = ["a", "b"].includes(pathSide) ? "ab" :
+                         ["c", "d"].includes(pathSide) ? "cd" :
+                         ["e", "f"].includes(pathSide) ? "ef" : "gh";
+    const labels = matchIdToLabels[currentMatchId] || ["TEAM A", "TEAM B"];
+    const resultLabelA = document.getElementById('result-team-a-label');
+    const resultLabelB = document.getElementById('result-team-b-label');
+    if (resultLabelA) resultLabelA.innerText = labels[0];
+    if (resultLabelB) resultLabelB.innerText = labels[1];
     
     ui.result.a.id.innerText = a.team_id;
     ui.result.b.id.innerText = b.team_id;

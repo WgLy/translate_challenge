@@ -50,7 +50,7 @@
     <div class="flex justify-center mt-md">
       <div class="lobby-slot glass" id="my-lobby-slot" style="max-width: 400px; width: 100%;">
         <div class="slot-label" id="my-slot-label">Team</div>
-        <input type="number" class="input team-input" id="my-input-team" placeholder="隊伍編號" min="1">
+        <input type="number" class="input team-input" id="my-input-team" placeholder="小隊編號 (0-1000)" min="0" max="1000">
         <div class="mt-md">
           <button class="btn btn-primary" id="my-btn-ready" onclick="setReady()">準備</button>
           <button class="btn btn-ghost hidden" id="my-btn-cancel" onclick="cancelReady()">取消準備</button>
@@ -243,7 +243,7 @@
       <div class="result-card glass" id="result-card-a">
         <div class="result-icon" id="result-icon-a">❓</div>
         <div class="result-label" style="color:var(--team-a-color)">
-          Team A (<span id="result-team-a-id"></span>)
+          <span id="result-team-a-label">Team A</span> (<span id="result-team-a-id"></span>)
         </div>
         <div id="result-detail-a" class="text-muted" style="font-size:0.85rem;"></div>
       </div>
@@ -251,7 +251,7 @@
       <div class="result-card glass" id="result-card-b">
         <div class="result-icon" id="result-icon-b">❓</div>
         <div class="result-label" style="color:var(--team-b-color)">
-          Team B (<span id="result-team-b-id"></span>)
+          <span id="result-team-b-label">Team B</span> (<span id="result-team-b-id"></span>)
         </div>
         <div id="result-detail-b" class="text-muted" style="font-size:0.85rem;"></div>
       </div>

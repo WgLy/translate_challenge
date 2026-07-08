@@ -23,10 +23,34 @@ socketio = SocketIO(
     engineio_logger=False,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
+import os
+from logging.handlers import RotatingFileHandler
+
+# Create logs directory if it doesn't exist
+logs_dir = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(logs_dir, exist_ok=True)
+log_file = os.path.join(logs_dir, "game.log")
+
+log_formatter = logging.Formatter("%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+
+# File Handler (max 5MB, keeping 3 backups, UTF-8 encoding)
+file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
+file_handler.setFormatter(log_formatter)
+file_handler.setLevel(logging.INFO)
+
+# Console Handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+console_handler.setLevel(logging.INFO)
+
+# Root Logger Config
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+# Clear existing handlers to avoid duplicates in case of debug reloader
+root_logger.handlers = []
+root_logger.addHandler(file_handler)
+root_logger.addHandler(console_handler)
+
 logger = logging.getLogger("App_V2")
 
 client_roles = {}
@@ -265,6 +289,14 @@ def handle_set_ready(data):
         team_id = int(data.get("team_id"))
     except (TypeError, ValueError):
         emit("notification", {"type": "error", "message": "無效的小隊編號"})
+        return
+        
+    if team_id < 0 or team_id > 1000:
+        emit("notification", {"type": "error", "message": "小隊編號必須在 0 到 1000 之間"})
+        return
+        
+    if team_id < 0 or team_id > 1000:
+        emit("notification", {"type": "error", "message": "小隊編號必須在 0 到 1000 之間"})
         return
         
     result = match.set_ready(side, team_id)

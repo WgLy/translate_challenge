@@ -370,7 +370,7 @@ class MatchState:
                 st["correct_index"] = idx
                 st["original_text"] = text_obj["original"]
                 st["edited_text"] = [{"char": c, "edited": False} for c in text_obj["original"]]
-                if st.get("team_id"):
+                if st.get("team_id") is not None:
                     self._apply_percent_mode_cards(side, st["team_id"], len(text_obj["original"]))
                 break
         st["history"] = []
@@ -444,7 +444,7 @@ class MatchState:
                 return {"warning": "已確認編輯，無法再使用技能"}
                 
             team_id = team_state["team_id"]
-            if not team_id:
+            if team_id is None:
                 return {"warning": "隊伍不存在"}
                 
             team = self._get_team(team_id)
@@ -544,7 +544,7 @@ class MatchState:
             
             # Refund card
             team_id = team_state["team_id"]
-            if team_id:
+            if team_id is not None:
                 team = self._get_team(team_id)
                 self._refund_card(team, skill)
             
@@ -562,7 +562,7 @@ class MatchState:
                 return {"warning": "已確認編輯，無法再使用技能"}
                 
             team_id = team_state["team_id"]
-            if not team_id:
+            if team_id is None:
                 return {"warning": "隊伍不存在"}
                 
             team = self._get_team(team_id)
@@ -578,7 +578,7 @@ class MatchState:
     def refund_card(self, side: str, skill: str):
         with self._lock:
             team_id = self._state[side]["team_id"]
-            if team_id:
+            if team_id is not None:
                 team = self._get_team(team_id)
                 self._refund_card(team, skill)
 
