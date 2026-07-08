@@ -284,8 +284,26 @@
   <div class="popover-hint">輸入 1 個字元後按 Enter</div>
 </div>
 
-<!-- ── Toast Container ──────────────────────────────────────────── -->
-<div id="toast-container"></div>
+<!-- ── Batch Replace Modal ──────────────────────────────────────── -->
+<div class="modal-backdrop hidden" id="batch-replace-modal">
+  <div class="modal-content glass">
+    <h3 class="mb-md">🔠 批量修改</h3>
+    <div class="flex flex-column gap-sm mb-md">
+      <div>
+        <label class="label-sm block mb-xs" id="batch-target-label" style="text-align: left; margin-bottom: 6px; display: block;">被替換的詞語 (2~5 字元)</label>
+        <input type="text" class="input" id="batch-target-input" placeholder="請輸入舊詞語" style="width: 100%;">
+      </div>
+      <div style="margin-top: 10px;">
+        <label class="label-sm block mb-xs" id="batch-replacement-label" style="text-align: left; margin-bottom: 6px; display: block;">替換成的新詞 (2~5 字元)</label>
+        <input type="text" class="input" id="batch-replacement-input" placeholder="請輸入新詞語" style="width: 100%;">
+      </div>
+    </div>
+    <div class="flex justify-end gap-sm" style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeBatchModal()">取消</button>
+      <button class="btn btn-primary btn-sm" onclick="applyBatchReplace()">確認替換</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Scripts ───────────────────────────────────────────────────── -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>

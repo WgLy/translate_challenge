@@ -84,6 +84,15 @@ SKILL_REGISTRY = {
         "params": {},
         "icon": "🌪️",
         "category": "ai",
+    },
+    "批量修改": {
+        "id": "batch_replace",
+        "name": "批量修改",
+        "description": "將文中所有指定的詞語替換為新詞語",
+        "default_count": 1,
+        "params": {},
+        "icon": "🔠",
+        "category": "manual",
     }
 }
 
@@ -181,11 +190,13 @@ class MatchState:
             preserved_ai_count = 2 if full else self._state.get("ai_skill_shared_count", 2)
             
             preserved_pct_mode = False if full else self._state.get("skill_percent_mode", False)
-            preserved_pct_vals = {"增字": 5, "刪字": 5, "改字": 5, "搬移": 2} if full else self._state.get("skill_percent_values", {"增字": 5, "刪字": 5, "改字": 5, "搬移": 2})
+            preserved_pct_vals = {"增字": 5, "刪字": 5, "改字": 5, "搬移": 2, "批量修改": 1} if full else self._state.get("skill_percent_values", {"增字": 5, "刪字": 5, "改字": 5, "搬移": 2, "批量修改": 1})
             preserved_ai_pct = 3 if full else self._state.get("ai_skill_percent_value", 3)
             
             preserved_timer_enabled = False if full else self._state.get("timer_enabled", False)
             preserved_timer_seconds = 300 if full else self._state.get("timer_seconds", 300)
+            preserved_batch_min = 2 if full else self._state.get("batch_replace_min", 2)
+            preserved_batch_max = 5 if full else self._state.get("batch_replace_max", 5)
             
             # preserve team IDs in lobby if not full reset
             team_a_id = None
@@ -211,6 +222,8 @@ class MatchState:
                 "ai_skill_percent_value": preserved_ai_pct,
                 "timer_enabled": preserved_timer_enabled,
                 "timer_seconds": preserved_timer_seconds,
+                "batch_replace_min": preserved_batch_min,
+                "batch_replace_max": preserved_batch_max,
                 "timer_start_timestamp": None if full else self._state.get("timer_start_timestamp"),
                 "timer_running": False if full else self._state.get("timer_running", False),
                 self.side_a: team_a_state,
@@ -537,6 +550,39 @@ class MatchState:
             # Insert segment
             text = text[:to_pos] + segment + text[to_pos:]
             return text
+            
+        elif skill == "批量修改":
+            target = params.get("target", "")
+            replacement = params.get("replacement", "")
+            
+            min_n = self._state.get("batch_replace_min", 2)
+            max_n = self._state.get("batch_replace_max", 5)
+            
+            if len(target) < min_n or len(target) > max_n:
+                raise ValueError(f"替換詞長度必須在 {min_n} 到 {max_n} 字元之間")
+            if len(replacement) < min_n or len(replacement) > max_n:
+                raise ValueError(f"新詞長度必須在 {min_n} 到 {max_n} 字元之間")
+                
+            new_text = []
+            idx = 0
+            while idx < len(text):
+                match = True
+                if idx + len(target) <= len(text):
+                    for j in range(len(target)):
+                        if text[idx + j]["char"] != target[j]:
+                            match = False
+                            break
+                else:
+                    match = False
+                    
+                if match:
+                    for rc in replacement:
+                        new_text.append({"char": rc, "edited": True})
+                    idx += len(target)
+                else:
+                    new_text.append(text[idx])
+                    idx += 1
+            return new_text
             
         else:
             raise ValueError(f"未知的技能: {skill}")

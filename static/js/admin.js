@@ -346,6 +346,15 @@ function updateUI() {
     if (document.activeElement !== ui.params.moveLen && gameState.skill_registry['搬移']) {
         ui.params.moveLen.value = gameState.skill_registry['搬移'].params.segment_length;
     }
+    
+    const batchMinIn = document.getElementById('input-batch-min');
+    const batchMaxIn = document.getElementById('input-batch-max');
+    if (batchMinIn && document.activeElement !== batchMinIn) {
+        batchMinIn.value = gameState.batch_replace_min !== undefined ? gameState.batch_replace_min : 2;
+    }
+    if (batchMaxIn && document.activeElement !== batchMaxIn) {
+        batchMaxIn.value = gameState.batch_replace_max !== undefined ? gameState.batch_replace_max : 5;
+    }
 
     // Dynamic Controls Generation
     renderCardControls();
@@ -558,3 +567,20 @@ function showToast(msg, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 4000);
 }
+
+
+window.applyBatchReplaceBounds = function() {
+    const minN = parseInt(document.getElementById('input-batch-min').value);
+    const maxN = parseInt(document.getElementById('input-batch-max').value);
+    
+    if (isNaN(minN) || isNaN(maxN) || minN < 1 || maxN < minN) {
+        showToast('請輸入合法的字元區間！', 'error');
+        return;
+    }
+    
+    socket.emit('admin_set_batch_replace_bounds', {
+        match_id: currentMatchId,
+        min_n: minN,
+        max_n: maxN
+    });
+};

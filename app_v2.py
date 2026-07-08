@@ -758,6 +758,28 @@ def handle_admin_set_timer(data):
         status = "開啟（" + str(seconds) + "秒）" if enabled else "關閉"
         notify(f"⏱️ 遊戲 ({match_id}) 全域計時模式已" + status, "info")
 
+@socketio.on("admin_set_batch_replace_bounds")
+def handle_admin_set_batch_replace_bounds(data):
+    if client_roles.get(request.sid) != "admin": return
+    match_id = data.get("match_id", "ab")
+    try:
+        min_n = int(data.get("min_n", 2))
+        max_n = int(data.get("max_n", 5))
+    except (TypeError, ValueError):
+        return
+        
+    if min_n < 1 or max_n < min_n:
+        emit("notification", {"type": "error", "message": "無效的區間範圍"})
+        return
+        
+    match = game_state_v2.get_match_by_id(match_id)
+    if match:
+        with match._lock:
+            match._state["batch_replace_min"] = min_n
+            match._state["batch_replace_max"] = max_n
+        broadcast_state(match_id)
+        notify(f"⏱️ 遊戲 ({match_id}) 批量修改長度合法區間已設定為 {min_n}~{max_n} 字元", "info")
+
 @socketio.on("admin_force_phase")
 def handle_admin_force_phase(data):
     if client_roles.get(request.sid) != "admin": return

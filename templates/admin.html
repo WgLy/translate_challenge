@@ -236,6 +236,15 @@
           <input type="number" class="input" id="input-move-length" min="1" max="50" value="10" style="width:80px;">
           <button class="btn btn-sm btn-ghost" onclick="setSkillParam('搬移','segment_length')">套用</button>
         </div>
+        <div class="admin-row mt-sm">
+          <label>批量修改字元區間</label>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="number" class="input" id="input-batch-min" min="1" max="20" value="2" style="width:60px; text-align: center; padding: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; border-radius: 4px;">
+            <span>~</span>
+            <input type="number" class="input" id="input-batch-max" min="1" max="20" value="5" style="width:60px; text-align: center; padding: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; border-radius: 4px;">
+            <button class="btn btn-sm btn-ghost" onclick="applyBatchReplaceBounds()" style="padding: 2px 8px; font-size: 0.78rem;">套用</button>
+          </div>
+        </div>
       </div>
 
       <!-- AI Model -->

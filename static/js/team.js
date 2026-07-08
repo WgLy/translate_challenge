@@ -367,7 +367,7 @@ function updateEditing() {
     const registry = gameState.skill_registry || {};
     const aiRemaining = myState.ai_skill_uses || 0;
     
-    ['增字', '刪字', '改字', '搬移', '摘要', '誇飾', '插入名詞', '混亂語序'].forEach(skillName => {
+    ['增字', '刪字', '改字', '搬移', '批量修改', '摘要', '誇飾', '插入名詞', '混亂語序'].forEach(skillName => {
         const info = registry[skillName];
         if (!info) return;
         
@@ -426,6 +426,7 @@ function updateEditing() {
             if (action.skill === '增字') desc = `插入 "${action.params.char}" 於 ${action.params.position}`;
             else if (action.skill === '刪字') desc = `刪除字元於 ${action.params.position}`;
             else if (action.skill === '搬移') desc = `搬移文字從 ${action.params.from_pos} 到 ${action.params.to_pos}`;
+            else if (action.skill === '批量修改') desc = `將 "${action.params.target}" 批量替換為 "${action.params.replacement}"`;
             else desc = `使用 AI 修改文字`;
             
             el.innerHTML = `
@@ -473,6 +474,10 @@ function updateEditing() {
 }
 
 function toggleSkillMode(modeId, skillName) {
+    if (skillName === '批量修改') {
+        openBatchModal();
+        return;
+    }
     if (editingMode === modeId) {
         clearMode();
         updateEditing(); // re-render to clear active classes
