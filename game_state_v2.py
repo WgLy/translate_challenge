@@ -771,14 +771,12 @@ class MatchState:
         team_b_id = self._state[self.side_b]["team_id"]
         
         if team_a_id:
-            team_a_data = self._get_team(team_a_id)
             if is_a_correct:
-                team_a_data["score"] += 1
+                self._set_team_score(team_a_id, self._get_team_score(team_a_id) + 1)
                     
         if team_b_id:
-            team_b_data = self._get_team(team_b_id)
             if is_b_correct:
-                team_b_data["score"] += 1
+                self._set_team_score(team_b_id, self._get_team_score(team_b_id) + 1)
 
         self._state["phase"] = PHASE_RESULT
         self.end_game_lock() # Release lock so next game can start later

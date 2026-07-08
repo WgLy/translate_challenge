@@ -46,7 +46,7 @@ _ollama_url: str = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 
 USE_OPENROUTER = False
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.5-pro")
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemma-3-12b-it")
 
 _review_model: str = os.environ.get("REVIEW_MODEL", _ollama_model)
 _review_url: str = os.environ.get("REVIEW_URL", _ollama_url)

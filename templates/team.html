@@ -69,7 +69,7 @@
   <!--  PHASE: SELECTING TEXT                                      -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div id="phase-selecting-text" class="phase-panel hidden">
-    <div class="glass flex-col" style="padding: 2rem;">
+    <div class="glass flex-col" style="padding: 2.5rem; max-width: 1000px; margin: 0 auto;">
       <div class="text-center mb-md">
         <h2>📚 選擇攻擊文本</h2>
         <div class="text-muted mt-sm">本回合主題：<span id="select-topic-theme" style="color:var(--cyan); font-weight:bold;"></span></div>
@@ -304,6 +304,9 @@
     </div>
   </div>
 </div>
+
+<!-- ── Toast Container ──────────────────────────────────────────── -->
+<div id="toast-container"></div>
 
 <!-- ── Scripts ───────────────────────────────────────────────────── -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
