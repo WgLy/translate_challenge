@@ -580,7 +580,7 @@ def handle_submit_guess(data):
         return
         
     match.submit_guess(side, choice_idx)
-    broadcast_state(match.match_id)
+    broadcast_state()
     
     state = match.get_state()
     if state["phase"] == "RESULT":
@@ -631,7 +631,7 @@ def handle_admin_set_score(data):
     match = game_state_v2.get_match_by_id(match_id)
     if match:
         match.admin_set_score(team_id, score)
-        broadcast_state(match_id)
+        broadcast_state()
         notify(f"⚙️ 已將小隊 {team_id} 的分數設為 {score}", "info")
 
 @socketio.on("admin_set_translations")

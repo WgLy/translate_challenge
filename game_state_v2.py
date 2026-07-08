@@ -132,15 +132,29 @@ def _load_questions() -> list:
         return []
 
 class MatchState:
-    def __init__(self, match_id: str, side_a: str, side_b: str, questions: list):
+    def __init__(self, match_id: str, side_a: str, side_b: str, questions: list, manager=None):
         self._lock = threading.Lock()
         self._game_lock = threading.Lock()
         self.match_id = match_id
         self.side_a = side_a
         self.side_b = side_b
         self.questions = questions
+        self.manager = manager
         self._state = {}
         self.reset(full=True)
+
+    def _get_team_score(self, team_id) -> int:
+        if self.manager is not None:
+            return self.manager.get_team_score(team_id)
+        team = self._get_team(team_id)
+        return team.get("score", 0)
+
+    def _set_team_score(self, team_id, score: int):
+        if self.manager is not None:
+            self.manager.set_team_score(team_id, score)
+        else:
+            team = self._get_team(team_id)
+            team["score"] = score
 
     def _get_team(self, team_id) -> dict:
         key = str(team_id)
@@ -212,8 +226,8 @@ class MatchState:
         for side in (self.side_a, self.side_b):
             tid = state[side].get("team_id")
             if tid is not None:
+                state[side]["score"] = self._get_team_score(tid)
                 team = state["teams"].get(str(tid), {})
-                state[side]["score"] = team.get("score", 0)
                 state[side]["cards"] = copy.deepcopy(team.get("cards", {}))
                 state[side]["ai_skill_uses"] = team.get("ai_skill_uses", 2)
             else:
@@ -757,7 +771,7 @@ class MatchState:
 
     def admin_set_score(self, team_id: str, score: int):
         with self._lock:
-            self._get_team(team_id)["score"] = score
+            self._set_team_score(team_id, score)
 
     def admin_set_translation_count(self, count: int):
         with self._lock:
@@ -814,13 +828,49 @@ MATCH_TO_SIDES = {
 
 class GameManager:
     def __init__(self):
+        self._lock = threading.Lock()
         self.questions = _load_questions()
+        self.teams_file = os.path.join(os.path.dirname(__file__), "data", "team_scores.json")
+        self.teams_db = self._load_teams_db()
         self.matches = {
-            "ab": MatchState("ab", "team_a", "team_b", self.questions),
-            "cd": MatchState("cd", "team_a", "team_b", self.questions),
-            "ef": MatchState("ef", "team_a", "team_b", self.questions),
-            "gh": MatchState("gh", "team_a", "team_b", self.questions),
+            "ab": MatchState("ab", "team_a", "team_b", self.questions, self),
+            "cd": MatchState("cd", "team_a", "team_b", self.questions, self),
+            "ef": MatchState("ef", "team_a", "team_b", self.questions, self),
+            "gh": MatchState("gh", "team_a", "team_b", self.questions, self),
         }
+        
+    def _load_teams_db(self) -> dict:
+        if os.path.exists(self.teams_file):
+            try:
+                with open(self.teams_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.error(f"Error loading team scores: {e}")
+        return {}
+
+    def save_teams_db(self):
+        try:
+            os.makedirs(os.path.dirname(self.teams_file), exist_ok=True)
+            with open(self.teams_file, "w", encoding="utf-8") as f:
+                json.dump(self.teams_db, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Error saving team scores: {e}")
+
+    def get_team_score(self, team_id) -> int:
+        with self._lock:
+            key = str(team_id)
+            if key not in self.teams_db:
+                self.teams_db[key] = {"score": 0}
+                self.save_teams_db()
+            return self.teams_db[key].get("score", 0)
+
+    def set_team_score(self, team_id, score: int):
+        with self._lock:
+            key = str(team_id)
+            if key not in self.teams_db:
+                self.teams_db[key] = {}
+            self.teams_db[key]["score"] = score
+            self.save_teams_db()
         
     def get_match_and_side(self, side: str):
         if side not in SIDE_TO_MATCH:
