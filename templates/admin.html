@@ -13,6 +13,12 @@
 <header class="page-header">
   <div class="logo">AI 翻譯挑戰賽 V2 — 管理員</div>
   <div class="flex items-center gap-md">
+    <select id="admin-match-select" onchange="switchMatch(this.value)" style="background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; height: 24px; font-size: 0.8rem; margin-right: 8px;">
+      <option value="ab">對戰房 A vs B</option>
+      <option value="cd">對戰房 C vs D</option>
+      <option value="ef">對戰房 E vs F</option>
+      <option value="gh">對戰房 G vs H</option>
+    </select>
     <div id="phase-badge" class="badge badge-amber">LOBBY</div>
     <div id="round-badge" class="badge badge-purple">R1</div>
     <div id="conn-status">
@@ -28,14 +34,14 @@
   <div class="score-bar" id="score-bar">
     <div class="score-team">
       <span class="team-name" style="color:var(--team-a-color)">
-        TEAM A (<span id="score-team-a-id">?</span>)
+        <span id="score-team-a-label">TEAM A</span> (<span id="score-team-a-id">?</span>)
       </span>
       <span class="score-value" style="color:var(--team-a-color)" id="score-a">0</span>
     </div>
     <div class="score-vs">VS</div>
     <div class="score-team">
       <span class="team-name" style="color:var(--team-b-color)">
-        TEAM B (<span id="score-team-b-id">?</span>)
+        <span id="score-team-b-label">TEAM B</span> (<span id="score-team-b-id">?</span>)
       </span>
       <span class="score-value" style="color:var(--team-b-color)" id="score-b">0</span>
     </div>
@@ -183,7 +189,20 @@
 
       <!-- Translation Count -->
       <div class="glass" style="padding: var(--gap-md); margin-bottom: var(--gap-md);">
-        <div class="admin-row">
+        
+        <div class="admin-row" style="display: flex; align-items: center; gap: 8px;">
+          <label>⏱️ 全域計時模式</label>
+          <input type="checkbox" id="toggle-timer-enabled" onchange="toggleTimerEnabled(this.checked)" style="width: 20px; height: 20px; cursor: pointer;">
+        </div>
+        <div id="timer-settings-panel" class="mt-sm hidden" style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
+          <span class="label-sm" style="margin-bottom: 4px; display: block;">設定選文+編輯總計時秒數：</span>
+          <div class="flex gap-sm align-items-center">
+            <input type="number" id="input-timer-seconds" value="300" min="30" max="1800" style="width: 80px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px 4px; border-radius: 4px;">
+            <span class="text-muted" style="font-size: 0.85rem;">秒</span>
+            <button class="btn btn-sm btn-ghost" onclick="applyTimerSettings()" style="padding: 2px 8px; font-size: 0.78rem;">套用</button>
+          </div>
+        </div>
+<div class="admin-row">
           <label>翻譯次數</label>
           <input type="number" class="input" id="input-trans-count" min="1" max="30" value="10" style="width:80px;">
           <button class="btn btn-sm btn-ghost" onclick="setTranslationCount()">套用</button>
@@ -191,6 +210,21 @@
         <div class="admin-row mt-sm">
           <label>AI 自動審核</label>
           <input type="checkbox" id="toggle-auto-review" onchange="toggleAutoReview(this.checked)" style="width: 20px; height: 20px; cursor: pointer;" title="自動檢查連線錯誤等非翻譯問題並退回">
+        </div>
+        <div class="admin-row mt-sm" style="display: flex; align-items: center; gap: 8px;">
+          <label>卡片百分比模式</label>
+          <input type="checkbox" id="toggle-percent-mode" onchange="togglePercentMode(this.checked)" style="width: 20px; height: 20px; cursor: pointer;">
+        </div>
+        <div id="percent-mode-settings" class="mt-sm hidden" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+          <span class="label-sm" style="margin-bottom: 4px; display: block;">設定每 100 字所獲技能卡數量（預設 5% 增/刪/改, 2% 搬移, 3% AI）：</span>
+          <div class="flex gap-sm flex-wrap" style="font-size: 0.85rem;">
+            <label>增字 <input type="number" id="pct-add" value="5" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
+            <label>刪字 <input type="number" id="pct-del" value="5" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
+            <label>改字 <input type="number" id="pct-rep" value="5" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
+            <label>搬移 <input type="number" id="pct-mov" value="2" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
+            <label>AI <input type="number" id="pct-ai" value="3" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
+            <button class="btn btn-sm btn-ghost" onclick="applyPercentModeParams()" style="padding: 2px 8px; font-size: 0.78rem;">套用</button>
+          </div>
         </div>
       </div>
 
@@ -262,6 +296,7 @@
       <div class="glass" style="padding: var(--gap-md);">
         <div class="flex gap-md flex-wrap">
           <button class="btn btn-danger" onclick="adminReset()">🔄 完全重置遊戲</button>
+          <button class="btn btn-danger" onclick="confirmTerminate()" style="background-color: #dc2626;">🚑 終止遊戲</button>
         </div>
         <div class="mt-md">
           <span class="label-sm">強制切換階段</span>

@@ -41,7 +41,7 @@ _THINK_RE = re.compile(r"<think>.*?</think>", flags=re.DOTALL)
 
 # ─── 當前使用的 URL 與模型（線程安全） ───────────────────────────
 _model_lock = threading.Lock()
-_ollama_model: str = os.environ.get("OLLAMA_MODEL", "qwen3:8b")
+_ollama_model: str = os.environ.get("OLLAMA_MODEL", "google/gemma-3-12b-it")
 _ollama_url: str = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 
 USE_OPENROUTER = False

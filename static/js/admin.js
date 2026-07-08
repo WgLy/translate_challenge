@@ -7,6 +7,8 @@ const socket = io({
     path: '/ai_translate/socket.io',
     transports: ['polling']
 });
+let allMatchesState = null;
+let currentMatchId = 'ab';
 let gameState = null;
 
 // DOM Elements
@@ -197,7 +199,7 @@ window.scanModels = async function() {
 // ─── STATE UPDATE ────────────────────────────────────────────────────────────
 
 socket.on('state_update', (state) => {
-    gameState = state;
+    allMatchesState = state;
     updateUI();
 });
 
@@ -208,6 +210,12 @@ socket.on('notification', (data) => {
 // ─── UI UPDATES ──────────────────────────────────────────────────────────────
 
 function updateUI() {
+    if (!allMatchesState) return;
+    const selectEl = document.getElementById('admin-match-select');
+    if (selectEl) {
+        currentMatchId = selectEl.value;
+    }
+    gameState = allMatchesState[currentMatchId];
     if (!gameState) return;
 
     // Badges
@@ -221,6 +229,18 @@ function updateUI() {
     ui.scores.bId.innerText = gameState.team_b.team_id || '?';
     ui.scores.aVal.innerText = gameState.team_a.score;
     ui.scores.bVal.innerText = gameState.team_b.score;
+    
+    const matchIdToLabels = {
+        "ab": ["TEAM A", "TEAM B"],
+        "cd": ["TEAM C", "TEAM D"],
+        "ef": ["TEAM E", "TEAM F"],
+        "gh": ["TEAM G", "TEAM H"]
+    };
+    const labels = matchIdToLabels[currentMatchId] || ["TEAM A", "TEAM B"];
+    const labelA = document.getElementById('score-team-a-label');
+    const labelB = document.getElementById('score-team-b-label');
+    if (labelA) labelA.innerText = labels[0];
+    if (labelB) labelB.innerText = labels[1];
 
     // Team info
     ['team_a', 'team_b'].forEach(side => {
@@ -283,6 +303,46 @@ function updateUI() {
         autoReviewToggle.checked = gameState.auto_review;
     }
     
+    
+    const timerEnabledToggle = document.getElementById("toggle-timer-enabled");
+    if (timerEnabledToggle && gameState.timer_enabled !== undefined) {
+        timerEnabledToggle.checked = gameState.timer_enabled;
+        const panel = document.getElementById('timer-settings-panel');
+        if (panel) {
+            if (gameState.timer_enabled) panel.classList.remove('hidden');
+            else panel.classList.add('hidden');
+        }
+    }
+    const timerSecInput = document.getElementById("input-timer-seconds");
+    if (timerSecInput && document.activeElement !== timerSecInput && gameState.timer_seconds !== undefined) {
+        timerSecInput.value = gameState.timer_seconds;
+    }
+    
+    const percentModeToggle = document.getElementById("toggle-percent-mode");
+    if (percentModeToggle && gameState.skill_percent_mode !== undefined) {
+        percentModeToggle.checked = gameState.skill_percent_mode;
+        const container = document.getElementById('percent-mode-settings');
+        if (container) {
+            if (gameState.skill_percent_mode) container.classList.remove('hidden');
+            else container.classList.add('hidden');
+        }
+    }
+    
+    if (gameState.skill_percent_values) {
+        const pValues = gameState.skill_percent_values;
+        const addIn = document.getElementById('pct-add');
+        const delIn = document.getElementById('pct-del');
+        const repIn = document.getElementById('pct-rep');
+        const movIn = document.getElementById('pct-mov');
+        const aiIn = document.getElementById('pct-ai');
+        
+        if (addIn && document.activeElement !== addIn) addIn.value = pValues["增字"] || 5;
+        if (delIn && document.activeElement !== delIn) delIn.value = pValues["刪字"] || 5;
+        if (repIn && document.activeElement !== repIn) repIn.value = pValues["改字"] || 5;
+        if (movIn && document.activeElement !== movIn) movIn.value = pValues["搬移"] || 2;
+        if (aiIn && document.activeElement !== aiIn) aiIn.value = gameState.ai_skill_percent_value || 3;
+    }
+    
     if (document.activeElement !== ui.params.moveLen && gameState.skill_registry['搬移']) {
         ui.params.moveLen.value = gameState.skill_registry['搬移'].params.segment_length;
     }
@@ -341,6 +401,11 @@ function renderScoreControls() {
 
 // ─── ACTION HANDLERS ─────────────────────────────────────────────────────────
 
+window.switchMatch = function(matchId) {
+    currentMatchId = matchId;
+    updateUI();
+};
+
 window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.admin-tab').forEach(el => el.classList.remove('active'));
@@ -354,25 +419,70 @@ window.switchTab = function(tabId) {
 
 window.adminApprove = function(side) {
     if (confirm(`確定通過 ${side} 的翻譯嗎？`)) {
-        socket.emit('admin_approve', { side: side });
+        socket.emit('admin_approve', { match_id: currentMatchId, side: side });
     }
 };
 
 window.adminReject = function(side) {
     if (confirm(`確定退回 ${side} 的翻譯並重新翻譯嗎？`)) {
-        socket.emit('admin_reject', { side: side });
+        socket.emit('admin_reject', { match_id: currentMatchId, side: side });
     }
 };
 
 window.setTranslationCount = function() {
     const val = parseInt(ui.params.transCount.value);
     if (val >= 1 && val <= 30) {
-        socket.emit('admin_set_translations', { count: val });
+        socket.emit('admin_set_translations', { match_id: currentMatchId, count: val });
     }
 };
 
 window.toggleAutoReview = function(enabled) {
-    socket.emit('admin_set_auto_review', { enabled: enabled });
+    socket.emit('admin_set_auto_review', { match_id: currentMatchId, enabled: enabled });
+};
+
+
+window.toggleTimerEnabled = function(enabled) {
+    const panel = document.getElementById('timer-settings-panel');
+    if (panel) {
+        if (enabled) panel.classList.remove('hidden');
+        else panel.classList.add('hidden');
+    }
+    applyTimerSettings();
+};
+
+window.applyTimerSettings = function() {
+    const enabled = document.getElementById('toggle-timer-enabled').checked;
+    const seconds = parseInt(document.getElementById('input-timer-seconds').value) || 300;
+    socket.emit('admin_set_timer', { match_id: currentMatchId, enabled, seconds });
+};
+window.togglePercentMode = function(enabled) {
+    const container = document.getElementById('percent-mode-settings');
+    if (container) {
+        if (enabled) container.classList.remove('hidden');
+        else container.classList.add('hidden');
+    }
+    applyPercentModeParams();
+};
+
+window.applyPercentModeParams = function() {
+    const enabled = document.getElementById('toggle-percent-mode').checked;
+    const addVal = parseInt(document.getElementById('pct-add').value) || 5;
+    const delVal = parseInt(document.getElementById('pct-del').value) || 5;
+    const repVal = parseInt(document.getElementById('pct-rep').value) || 5;
+    const movVal = parseInt(document.getElementById('pct-mov').value) || 2;
+    const aiVal = parseInt(document.getElementById('pct-ai').value) || 3;
+    
+    socket.emit('admin_set_skill_percent_mode', {
+        match_id: currentMatchId,
+        enabled: enabled,
+        values: {
+            "增字": addVal,
+            "刪字": delVal,
+            "改字": repVal,
+            "搬移": movVal
+        },
+        ai_value: aiVal
+    });
 };
 
 window.setSkillParam = function(skill, param) {
@@ -382,7 +492,7 @@ window.setSkillParam = function(skill, param) {
     }
     
     if (val !== null) {
-        socket.emit('admin_set_skill_param', { skill, param, value: val });
+        socket.emit('admin_set_skill_param', { match_id: currentMatchId, skill, param, value: val });
     }
 };
 
@@ -406,22 +516,30 @@ window.setReviewModel = function() {
 };
 
 window.setCardCount = function(teamId, skill, count) {
-    socket.emit('admin_set_cards', { team_id: teamId, skill: skill, count: parseInt(count) });
+    socket.emit('admin_set_cards', { match_id: currentMatchId, team_id: teamId, skill: skill, count: parseInt(count) });
 };
 
 window.setScore = function(teamId, score) {
-    socket.emit('admin_set_score', { team_id: teamId, score: parseInt(score) });
+    socket.emit('admin_set_score', { match_id: currentMatchId, team_id: teamId, score: parseInt(score) });
 };
 
 window.adminReset = function() {
     if (confirm("⚠️ 警告：即將清除所有遊戲進度、分數與隊伍設定！\n確定要繼續嗎？")) {
-        socket.emit('admin_reset');
+        socket.emit('admin_reset', { match_id: currentMatchId });
+    }
+};
+
+window.confirmTerminate = function() {
+    const reason = prompt("請輸入終止原因（可選）：", "管理員終止遊戲");
+    if (reason === null) return;
+    if (confirm("⚠️ 確定要終止遊戲嗎？所有小隊將被強制終止〒")) {
+        socket.emit("admin_terminate", { match_id: currentMatchId, reason: reason });
     }
 };
 
 window.forcePhase = function(phase) {
     if (confirm(`確定要強制跳轉到 ${phase} 階段嗎？這可能會造成狀態不一致。`)) {
-        socket.emit('admin_force_phase', { phase: phase });
+        socket.emit('admin_force_phase', { match_id: currentMatchId, phase: phase });
     }
 };
 

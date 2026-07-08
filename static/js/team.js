@@ -8,14 +8,17 @@ const socket = io({
     transports: ['polling']
 });
 
-// Auto-detect side from URL path (/team/a or /team/b)
-let mySide = window.location.pathname.split('/').pop() === 'b' ? 'team_b' : 'team_a';
+// Auto-detect side from URL path
+let pathSide = window.location.pathname.split('/').pop();
+let realSide = 'team_' + pathSide;
+let mySide = ['a', 'c', 'e', 'g'].includes(pathSide) ? 'team_a' : 'team_b';
 
 // State
 let gameState = null;
 let editingMode = null; // null, 'add', 'delete', 'move-select', 'move-place'
 let moveSourcePos = -1;
 let skillParams = {};
+let isCastingAiSkill = false;
 
 // DOM Elements
 const ui = {
@@ -41,6 +44,7 @@ const ui = {
         adminReview: document.getElementById('phase-admin-review'),
         guessing: document.getElementById('phase-guessing'),
         result: document.getElementById('phase-result'),
+        terminated: document.getElementById('phase-terminated'),
     },
     lobby: {
         slot: document.getElementById('my-lobby-slot'),
@@ -96,7 +100,7 @@ const ui = {
 socket.on('connect', () => {
     ui.conn.dot.className = 'pulse-dot green';
     ui.conn.text.innerText = '已連線';
-    socket.emit('join_role', { role: mySide });
+    socket.emit('join_role', { role: realSide });
 });
 
 socket.on('disconnect', () => {
@@ -126,6 +130,7 @@ socket.on('translation_progress', (data) => {
 
 function updateUI() {
     if (!gameState) return;
+    isCastingAiSkill = false;
 
     ui.badges.phase.innerText = gameState.phase;
     ui.badges.round.innerText = `R${gameState.round_number}`;
@@ -137,11 +142,23 @@ function updateUI() {
         if(p) p.classList.add('hidden');
     });
     
+    // Check timer reconnect
+    if (gameState.timer_running && gameState.timer_start_timestamp && !timerInterval) {
+        startCountdown(gameState.timer_seconds, gameState.timer_start_timestamp);
+    } else if (!gameState.timer_running && timerInterval) {
+        stopCountdown();
+    }
+
     if (gameState.phase === 'LOBBY') {
         ui.panels.lobby.classList.remove('hidden');
         updateLobby();
     } else {
-        switch (gameState.phase) {
+        let activePhase = gameState.phase;
+        if (activePhase === 'SELECTING_TEXT' && gameState.timer_enabled && gameState[mySide].confirmed_selection) {
+            activePhase = 'EDITING';
+        }
+        
+        switch (activePhase) {
             case 'SELECTING_TEXT':
                 ui.panels.selecting.classList.remove('hidden');
                 updateSelecting();
@@ -172,6 +189,15 @@ function updateUI() {
                 ui.panels.result.classList.remove('hidden');
                 updateResult();
                 break;
+            case 'TERMINATED':
+                if (ui.panels.terminated) {
+                    ui.panels.terminated.classList.remove('hidden');
+                }
+                const reason = gameState.terminate_reason || '管理員終止了遊戲';
+                const reasonEl = document.getElementById('terminate-reason');
+                if (reasonEl) reasonEl.textContent = reason;
+                clearMode();
+                break;
         }
     }
 }
@@ -181,6 +207,21 @@ function updateScoreBar() {
     ui.scores.bId.innerText = gameState.team_b.team_id || '?';
     ui.scores.aVal.innerText = gameState.team_a.score;
     ui.scores.bVal.innerText = gameState.team_b.score;
+    
+    const matchIdToLabels = {
+        "ab": ["TEAM A", "TEAM B"],
+        "cd": ["TEAM C", "TEAM D"],
+        "ef": ["TEAM E", "TEAM F"],
+        "gh": ["TEAM G", "TEAM H"]
+    };
+    const currentMatchId = ["a", "b"].includes(pathSide) ? "ab" :
+                         ["c", "d"].includes(pathSide) ? "cd" :
+                         ["e", "f"].includes(pathSide) ? "ef" : "gh";
+    const labels = matchIdToLabels[currentMatchId] || ["TEAM A", "TEAM B"];
+    const labelA = document.getElementById('score-team-a-label');
+    const labelB = document.getElementById('score-team-b-label');
+    if (labelA) labelA.innerText = labels[0];
+    if (labelB) labelB.innerText = labels[1];
 }
 
 // ─── PHASE: LOBBY ────────────────────────────────────────────────────────────
@@ -188,7 +229,7 @@ function updateScoreBar() {
 function updateLobby() {
     const state = gameState[mySide];
 
-    ui.lobby.label.innerText = mySide === 'team_a' ? 'Team A' : 'Team B';
+    ui.lobby.label.innerText = 'Team ' + pathSide.toUpperCase();
     ui.lobby.label.style.color = mySide === 'team_a' ? 'var(--team-a-color)' : 'var(--team-b-color)';
     ui.lobby.slot.classList.add(mySide === 'team_a' ? 'team-a' : 'team-b');
 
@@ -283,6 +324,15 @@ function updateEditing() {
     const oppState = gameState[mySide === 'team_a' ? 'team_b' : 'team_a'];
     const locked = myState.confirmed_edit;
 
+    if (editingMode) {
+        const myCards = myState.cards || {};
+        const skillName = skillParams.skillName;
+        const count = skillName === 'AI_SHARED' ? (myState.ai_skill_uses || 0) : (myCards[skillName] || 0);
+        if (count <= 0) {
+            clearMode();
+        }
+    }
+
     // Topic & Original
     if (myState.topic) {
         ui.edit.topic.innerText = myState.topic.theme;
@@ -304,30 +354,43 @@ function updateEditing() {
     ui.edit.skills.innerHTML = '';
     const myCards = myState.cards || {};
     const registry = gameState.skill_registry || {};
+    const aiRemaining = myState.ai_skill_uses || 0;
     
-    ['增字', '刪字', '搬移', '摘要', '誇飾', '插入名詞', '混亂語序'].forEach(skillName => {
+    ['增字', '刪字', '改字', '搬移', '摘要', '誇飾', '插入名詞', '混亂語序'].forEach(skillName => {
         const info = registry[skillName];
         if (!info) return;
         
-        const count = myCards[skillName] || 0;
+        const isAi = info.category === 'ai';
+        const count = isAi ? aiRemaining : (myCards[skillName] || 0);
         if (count === 0) return; // Hide card if count is 0
         
-        const isDisabled = locked;
+        const isDisabled = locked || isCastingAiSkill;
         const isActive = editingMode === info.id;
         
         const card = document.createElement('div');
         card.className = `skill-card ${isDisabled ? 'disabled' : ''} ${isActive ? 'active' : ''}`;
         card.dataset.skill = skillName;
+        
+        let countText = `剩 ${count} 張`;
+        if (isAi) {
+            countText = `共享 (剩 ${count} 次)`;
+            card.classList.add('ai-skill-card');
+        }
+        
         card.innerHTML = `
             <div class="skill-icon">${info.icon}</div>
             <div class="skill-name">${info.name}</div>
-            <div class="skill-count">剩 ${count} 張</div>
+            <div class="skill-count">${countText}</div>
         `;
         
         if (!isDisabled) {
             // LLM skills trigger immediately, char skills require mode
-            if (['摘要', '誇飾', '插入名詞', '混亂語序'].includes(skillName)) {
+            if (isAi) {
                 card.onclick = () => {
+                    if (isCastingAiSkill) return;
+                    isCastingAiSkill = true;
+                    updateEditing();
+                    skillParams = { skillName: 'AI_SHARED' };
                     socket.emit('apply_skill', { side: mySide, skill: skillName, params: {} });
                 };
             } else {
@@ -358,7 +421,7 @@ function updateEditing() {
                 <div class="action-desc">
                     <span style="color:var(--cyan)">[${action.skill}]</span> ${desc}
                 </div>
-                ${!locked && idx === myState.skill_actions.length - 1 ? 
+                ${!locked && !isCastingAiSkill && idx === myState.skill_actions.length - 1 ? 
                   `<div class="action-undo" onclick="undoSkill()">↩️ 復原</div>` : ''}
             `;
             ui.edit.history.appendChild(el);
@@ -367,7 +430,7 @@ function updateEditing() {
     }
 
     // Render Text Cells
-    renderTextCells(myState.edited_text, locked);
+    renderTextCells(myState.edited_text, locked || isCastingAiSkill);
 
     // Confirm Buttons
     if (locked) {
@@ -380,6 +443,16 @@ function updateEditing() {
     } else {
         ui.edit.btnConfirm.classList.remove('hidden');
         ui.edit.btnCancel.classList.add('hidden');
+        
+        ui.edit.skills.style.pointerEvents = isCastingAiSkill ? 'none' : 'auto';
+        ui.edit.skills.style.opacity = isCastingAiSkill ? '0.5' : '1';
+        
+        if (isCastingAiSkill) {
+            setSkillInstruction('正在施放 AI 技能，請稍候...');
+            ui.edit.btnConfirm.disabled = true;
+        } else {
+            ui.edit.btnConfirm.disabled = false;
+        }
         ui.edit.skills.style.pointerEvents = 'auto';
         ui.edit.skills.style.opacity = '1';
         if (!editingMode) {
@@ -399,8 +472,9 @@ function toggleSkillMode(modeId, skillName) {
     skillParams = { skillName: skillName };
     moveSourcePos = -1;
     
-    if (modeId === 'add_char') setSkillInstruction('請點擊文本中你想插入文字的位置');
-    if (modeId === 'delete_char') setSkillInstruction('請點擊想刪除的文字');
+    if (modeId === 'add_char') setSkillInstruction('請點擊文本中你想插入文字的位置（連續模式）');
+    if (modeId === 'delete_char') setSkillInstruction('請點擊想刪除的文字（連續模式）');
+    if (modeId === 'replace_char') setSkillInstruction('請點擊想修改的文字（連續模式）');
     if (modeId === 'move_segment') {
         const len = gameState.skill_registry['搬移'].params.segment_length;
         skillParams.segLen = len;
@@ -432,6 +506,7 @@ function renderTextCells(textArray, locked) {
     if (!locked && editingMode) {
         if (editingMode === 'delete_char') container.classList.add('mode-delete');
         if (editingMode === 'add_char') container.classList.add('mode-add');
+        if (editingMode === 'replace_char') container.classList.add('mode-replace');
         if (editingMode === 'move_segment') {
             if (moveSourcePos === -1) container.classList.add('mode-move-select');
             else container.classList.add('mode-move-place');
@@ -499,7 +574,16 @@ function renderTextCells(textArray, locked) {
 function handleCellClick(index, e) {
     if (editingMode === 'delete_char') {
         socket.emit('apply_skill', { side: mySide, skill: '刪字', params: { position: index } });
-        clearMode();
+    } else if (editingMode === 'replace_char') {
+        skillParams.position = index;
+        
+        // Show popover near click
+        const rect = e.target.getBoundingClientRect();
+        ui.edit.popover.style.left = `${rect.left - 30}px`;
+        ui.edit.popover.style.top = `${rect.bottom + 10}px`;
+        ui.edit.popover.classList.add('show');
+        ui.edit.charInput.value = '';
+        ui.edit.charInput.focus();
     } else if (editingMode === 'move_segment' && moveSourcePos === -1) {
         moveSourcePos = index;
         setSkillInstruction('請點擊游標，選擇要插入的位置');
@@ -537,12 +621,21 @@ ui.edit.charInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         const char = ui.edit.charInput.value;
         if (char && char.length === 1) {
-            socket.emit('apply_skill', { 
-                side: mySide, 
-                skill: '增字', 
-                params: { position: skillParams.position, char: char } 
-            });
-            clearMode();
+            if (editingMode === 'add_char') {
+                socket.emit('apply_skill', { 
+                    side: mySide, 
+                    skill: '增字', 
+                    params: { position: skillParams.position, char: char } 
+                });
+                ui.edit.popover.classList.remove('show');
+            } else if (editingMode === 'replace_char') {
+                socket.emit('apply_skill', {
+                    side: mySide,
+                    skill: '改字',
+                    params: { position: skillParams.position, char: char }
+                });
+                ui.edit.popover.classList.remove('show');
+            }
         } else {
             showToast('請輸入 1 個字元', 'warning');
         }
@@ -754,4 +847,65 @@ function showToast(msg, type = 'info') {
         toast.classList.add('removing');
         setTimeout(() => toast.remove(), 300);
     }, 4000);
+}
+
+
+// --- Timer Mode (Feature 1) ---
+let timerInterval = null;
+
+socket.on('timer_start', (data) => {
+    startCountdown(data.total_seconds, data.start_timestamp);
+});
+
+socket.on('timer_cancel', () => {
+    stopCountdown();
+});
+
+function startCountdown(totalSeconds, startTimestamp) {
+    stopCountdown();
+    
+    const timerEl = document.getElementById('game-timer');
+    const displayEl = document.getElementById('timer-display');
+    if (!timerEl || !displayEl) return;
+    
+    timerEl.classList.remove('hidden');
+    timerEl.style.display = 'inline-flex';
+    
+    const endTime = startTimestamp + totalSeconds;
+    
+    const updateTimer = () => {
+        const now = Date.now() / 1000;
+        const remaining = Math.max(0, Math.ceil(endTime - now));
+        
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        displayEl.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        
+        if (remaining <= 30) {
+            timerEl.style.backgroundColor = '#dc2626';
+            timerEl.style.boxShadow = '0 0 10px #dc2626';
+        } else {
+            timerEl.style.backgroundColor = '';
+            timerEl.style.boxShadow = '';
+        }
+        
+        if (remaining <= 0) {
+            stopCountdown();
+        }
+    };
+    
+    updateTimer();
+    timerInterval = setInterval(updateTimer, 500);
+}
+
+function stopCountdown() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    const timerEl = document.getElementById('game-timer');
+    if (timerEl) {
+        timerEl.classList.add('hidden');
+        timerEl.style.display = 'none';
+    }
 }

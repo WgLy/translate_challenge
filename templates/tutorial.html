@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 翻譯挑戰賽 V2 — 遊戲教學</title>
+  <link rel="stylesheet" href="/ai_translate/dynamic_static/css/base_css">
+  <style>
+    .tutorial-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .step-card {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 1rem;
+      align-items: start;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .step-number {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      color: white;
+      flex-shrink: 0;
+    }
+    .step-content h3 { 
+      margin: 0 0 0.5rem; 
+      color: var(--cyan);
+    }
+    .step-content p {
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin: 0.3rem 0;
+    }
+    .skill-demo {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .skill-card-demo {
+      padding: 1rem;
+      text-align: center;
+    }
+    .skill-icon-large {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    .skill-card-demo h4 {
+      color: var(--text-primary);
+      margin: 0.5rem 0 0.3rem;
+    }
+    .skill-card-demo p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .tip-box {
+      background: rgba(0, 212, 255, 0.1);
+      border-left: 3px solid var(--cyan);
+      padding: 1rem 1.5rem;
+      margin: 1rem 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .back-link {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <a href="/ai_translate/team/a" class="back-link btn btn-ghost">← 返回遊戲</a>
+  
+  <div class="tutorial-container">
+    <div class="text-center" style="margin-bottom:3rem;">
+      <h1 style="font-size:2.2rem; background: linear-gradient(135deg, var(--cyan), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        🎮 AI 翻譯挑戰賽 V2
+      </h1>
+      <p class="text-muted" style="font-size:1.1rem;">遊戲教學指南</p>
+    </div>
+    
+    <!-- 遊戲簡介 -->
+    <div class="glass" style="padding:2rem; margin-bottom:2rem;">
+      <h2 style="margin-top:0;">📖 遊戲簡介</h2>
+      <p style="color:var(--text-muted); line-height:1.8;">
+        AI 翻譯挑戰賽是一款雙隊對戰遊戲。每隊各選一篇文章，使用技能卡修改文章後，
+        經由 AI 多次翻譯使內容產生變化。對方小隊需要從四篇原文中，猜出被翻譯汙染的文本原來是哪一篇。
+        <strong>猜對得分！</strong>
+      </p>
+    </div>
+    
+    <!-- 遊戲流程 -->
+    <h2 style="margin-bottom:1.5rem;">🔄 遊戲流程</h2>
+    
+    <div class="step-card glass">
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <h3>準備階段 (LOBBY)</h3>
+        <p>兩隊分別輸入小隊編號並按下「準備」。雙方都準備後，遊戲自動開始。</p>
+        <p>💡 隊伍 A/B 為一組對戰，C/D 為另一組，互不干擾。</p>
+      </div>
+    </div>
+    
+    <div class="step-card glass">
+      <div class="step-number">2</div>
+      <div class="step-content">
+        <h3>選文階段 (SELECTING)</h3>
+        <p>系統隨機抽取一個主題，顯示四篇相似的文章。</p>
+        <p>小隊討論後選擇一篇作為「攻擊文本」，確認後等待對方或進入編輯。</p>
+      </div>
+    </div>
+    
+    <div class="step-card glass">
+      <div class="step-number">3</div>
+      <div class="step-content">
+        <h3>編輯階段 (EDITING)</h3>
+        <p>使用技能卡修改所選文本，讓對方在翻譯後更難辨認原文。</p>
+        <p>⚠️ 修改越大，翻譯後的偏差越大。但也要注意不要修改到完全不像原文！</p>
+      </div>
+    </div>
+    
+    <div class="step-card glass">
+      <div class="step-number">4</div>
+      <div class="step-content">
+        <h3>翻譯階段 (TRANSLATING)</h3>
+        <p>AI 將你的文本依序翻譯成多種語言，最後翻回繁體中文。過程全自動，請耐心等待。</p>
+      </div>
+    </div>
+    
+    <div class="step-card glass">
+      <div class="step-number">5</div>
+      <div class="step-content">
+        <h3>猜題階段 (GUESSING)</h3>
+        <p>你會看到對方文本經 AI 翻譯後的結果，以及四篇原文選項。</p>
+        <p>🎯 仔細比對，選出你認為是對方原文的那一篇！</p>
+      </div>
+    </div>
+    
+    <div class="step-card glass">
+      <div class="step-number">6</div>
+      <div class="step-content">
+        <h3>結果階段 (RESULT)</h3>
+        <p>公布雙方的猜題結果。猜對者得 1 分。確認後進入下一回合。</p>
+      </div>
+    </div>
+    
+    <!-- 技能卡說明 -->
+    <h2 style="margin: 2rem 0 1.5rem;">🃏 技能卡說明</h2>
+    
+    <h3 style="color:var(--cyan); margin-bottom:1rem;">✋ 手動技能</h3>
+    <div class="skill-demo">
+      <div class="skill-card-demo glass">
+        <div class="skill-icon-large">✍️</div>
+        <h4>增字</h4>
+        <p>在文本任意位置插入一個字元。點擊文字間隙即可插入。支援連續操作。</p>
+      </div>
+      <div class="skill-card-demo glass">
+        <div class="skill-icon-large">✂️</div>
+        <h4>刪字</h4>
+        <p>刪除文本中的一個字元。直接點擊想刪除 of the word 即可。支援連續操作。</p>
+      </div>
+      <div class="skill-card-demo glass">
+        <div class="skill-icon-large">🔄</div>
+        <h4>改字</h4>
+        <p>將一個字元替換為另一個字元。點擊要替換的字後輸入新字元。支援連續操作。</p>
+      </div>
+      <div class="skill-card-demo glass">
+        <div class="skill-icon-large">🔀</div>
+        <h4>搬移</h4>
+        <p>選擇一段文字（固定長度）搬移到另一個位置。先點起點，再點目標位置。</p>
+      </div>
+    </div>
+    
+    <h3 style="color:var(--purple); margin: 1.5rem 0 1rem;">🤖 AI 技能（共享使用次數）</h3>
+    <div class="tip-box">
+      <p>AI 技能共享使用次數！例如總共可用 2 次，用了「摘要」1 次後，剩餘的 AI 技能共用剩下的 1 次。</p>
+    </div>
+    <div class="skill-demo">
+      <div class="skill-card-demo glass">
+        <div class="skill-icon-large">📝</div>
+        <h4>摘要</h4>
+        <p>AI 將文本精簡摘要。</p>
+      </div>
+      <div class="skill-card-demo glass">
+        <div class="skill-icon-large">🎭</div>
+        <h4>誇飾</h4>
+        <p>AI 用誇張語氣改寫。</p>
+      </div>
+      <div class="skill-card-demo glass">
+        <div class="skill-icon-large">🔤</div>
+        <h4>插入名詞</h4>
+        <p>AI 隨機插入不相干名詞。</p>
+      </div>
+      <div class="skill-card-demo glass">
+        <div class="skill-icon-large">🌪️</div>
+        <h4>混亂語序</h4>
+        <p>AI 打亂文本語序。</p>
+      </div>
+    </div>
+    
+    <!-- 策略提示 -->
+    <h2 style="margin: 2rem 0 1rem;">💡 遊戲策略</h2>
+    <div class="glass" style="padding:1.5rem;">
+      <ul style="color:var(--text-muted); line-height:2;">
+        <li>🎯 <strong>選文策略</strong>：選擇與其他文章風格相似的文章，增加對手辨識難度。</li>
+        <li>✂️ <strong>編輯策略</strong>：適度修改關鍵詞而非大量亂改，讓翻譯後的結果自然地偏離原意。</li>
+        <li>🤖 <strong>AI 技能</strong>：AI 技能改動幅度大，但可能讓翻譯結果面目全非——慎用！</li>
+        <li>🔍 <strong>猜題技巧</strong>：留意翻譯後文本的結構、關鍵名詞 and 語氣，往往能找到緇絲馬跡。</li>
+      </ul>
+    </div>
+    
+    <div class="text-center" style="margin-top:3rem; padding-bottom:2rem;">
+      <a href="/ai_translate/team/a" class="btn btn-primary btn-lg">🚀 開始遊戲！</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -15,6 +15,8 @@
   <div class="flex items-center gap-md">
     <div id="phase-badge" class="badge badge-cyan">LOBBY</div>
     <div id="round-badge" class="badge badge-purple">R1</div>
+    <div id="game-timer" class="badge badge-red hidden" style="background-color: var(--red); color: white; display: inline-flex; align-items: center; gap: 4px; height: 24px; font-weight: bold; margin-left: 8px;">⏱️ <span id="timer-display">05:00</span></div>
+    <a href="/ai_translate/tutorial" target="_blank" class="btn btn-ghost btn-sm" style="font-size:0.78rem; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.15); padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; height: 24px; vertical-align: middle;">📖 遊戲教學</a>
     <div id="conn-status">
       <div class="pulse-dot green" id="conn-dot"></div>
       <span id="conn-text">已連線</span>
@@ -27,14 +29,14 @@
   <div class="score-bar" id="score-bar">
     <div class="score-team">
       <span class="team-name" style="color:var(--team-a-color)">
-        TEAM A (<span id="score-team-a-id">?</span>)
+        <span id="score-team-a-label">TEAM A</span> (<span id="score-team-a-id">?</span>)
       </span>
       <span class="score-value" style="color:var(--team-a-color)" id="score-a">0</span>
     </div>
     <div class="score-vs">VS</div>
     <div class="score-team">
       <span class="team-name" style="color:var(--team-b-color)">
-        TEAM B (<span id="score-team-b-id">?</span>)
+        <span id="score-team-b-label">TEAM B</span> (<span id="score-team-b-id">?</span>)
       </span>
       <span class="score-value" style="color:var(--team-b-color)" id="score-b">0</span>
     </div>
@@ -89,69 +91,69 @@
   <!-- PHASE: EDITING                                                  -->
   <!-- ════════════════════════════════════════════════════════════════ -->
   <div id="phase-editing" class="phase-panel hidden">
-    <h2 class="section-title mt-lg">✍️ 編輯攻擊文本</h2>
+    <h2 class="section-title mt-md" style="margin-bottom: 8px;">✍️ 編輯攻擊文本</h2>
 
-    <!-- My side info (will be set by JS based on which side this client is) -->
-    <div class="glass" style="padding: var(--gap-md); margin-bottom: var(--gap-md);">
-      <div class="flex items-center justify-between">
-        <div>
-          <span class="label-sm">主題</span>
-          <h3 id="edit-topic" style="margin-top:4px"></h3>
+    <div class="editing-layout">
+      <!-- Left Column: Source text & Editor -->
+      <div class="editing-left">
+        <div class="glass compact-glass">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="label-sm" style="font-size: 0.72rem;">主題：<strong id="edit-topic" style="color: var(--cyan);"></strong></span>
+            </div>
+            <div class="opponent-status" id="opponent-edit-status" style="padding: 2px 8px; font-size: 0.78rem;">
+              <div class="pulse-dot amber"></div>
+              <span>對方編輯中</span>
+            </div>
+          </div>
         </div>
-        <div class="opponent-status" id="opponent-edit-status">
-          <div class="pulse-dot amber"></div>
-          <span>對方編輯中</span>
+
+        <div class="glass compact-glass" style="margin-top: 8px;">
+          <span class="label-sm">原始文本</span>
+          <div id="edit-original" class="review-text compact-text" style="color: var(--text-muted); font-size: 0.8rem; max-height: 80px; overflow-y: auto; margin-top: 4px;"></div>
+        </div>
+
+        <div class="text-editor glass compact-glass" id="text-editor" style="margin-top: 8px; flex: 1; display: flex; flex-direction: column;">
+          <span class="label-sm">編輯後文本（點擊操作）</span>
+          <div class="text-display mt-xs" id="text-display" style="flex: 1; max-height: 250px; overflow-y: auto;">
+            <!-- Char cells rendered by JS -->
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Original Text (read-only) -->
-    <div class="glass" style="padding: var(--gap-md); margin-bottom: var(--gap-md);">
-      <span class="label-sm">原始文本</span>
-      <div id="edit-original" class="review-text" style="margin-top:8px; color: var(--text-muted);"></div>
-    </div>
+      <!-- Right Column: Skills & History -->
+      <div class="editing-right">
+        <div class="glass compact-glass" style="display: flex; flex-direction: column; gap: 4px;">
+          <span class="label-sm">技能卍牌</span>
+          <div class="skill-panel" id="skill-panel" style="gap: 6px; padding: 4px 0;">
+            <!-- Dynamically generated -->
+          </div>
+          <div id="skill-instruction" class="text-center text-muted" style="font-size:0.75rem; min-height:1.2em;"></div>
+        </div>
 
-    <!-- Skill Cards -->
-    <div class="skill-panel" id="skill-panel">
-      <!-- Dynamically generated -->
-    </div>
-
-    <!-- Add Char instruction -->
-    <div id="skill-instruction" class="text-center text-muted mt-sm mb-sm" style="font-size:0.82rem; min-height:1.3em;"></div>
-
-    <!-- Editable Text -->
-    <div class="text-editor glass" id="text-editor">
-      <span class="label-sm">編輯後文本（點擊操作）</span>
-      <div class="text-display mt-sm" id="text-display">
-        <!-- Char cells rendered by JS -->
-      </div>
-    </div>
-
-    <!-- Action History -->
-    <div class="glass mt-md" style="padding: var(--gap-md);">
-      <div class="flex items-center justify-between mb-sm">
-        <span class="label-sm">操作歷史</span>
-        <span class="label-sm" id="action-count">0 次操作</span>
-      </div>
-      <div class="action-history" id="action-history">
-        <div class="text-muted text-center" style="font-size:0.82rem; padding:8px;">尚無操作</div>
+        <div class="glass compact-glass" style="margin-top: 8px; flex: 1; display: flex; flex-direction: column;">
+          <div class="flex items-center justify-between mb-xs">
+            <span class="label-sm">操佝歷史</span>
+            <span class="label-sm" id="action-count" style="font-size: 0.72rem;">0 次操佝</span>
+          </div>
+          <div class="action-history compact-history" id="action-history" style="flex: 1; max-height: 150px; overflow-y: auto;">
+            <div class="text-muted text-center" style="font-size:0.75rem; padding:4px;">尚無操佝</div>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Confirm Bar -->
-    <div class="confirm-bar" id="edit-confirm-bar">
-      <button class="btn btn-success btn-lg" id="btn-confirm-edit" onclick="confirmEdit()">
+    <div class="confirm-bar sticky-bottom" id="edit-confirm-bar" style="margin-top: 12px; padding: 8px 0;">
+      <button class="btn btn-success btn-md" id="btn-confirm-edit" onclick="confirmEdit()">
         ✅ 確認送出
       </button>
-      <button class="btn btn-danger btn-lg hidden" id="btn-cancel-confirm" onclick="cancelConfirmEdit()">
+      <button class="btn btn-danger btn-md hidden" id="btn-cancel-confirm" onclick="cancelConfirmEdit()">
         ↩️ 取消確認
       </button>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════════════ -->
-  <!-- PHASE: TRANSLATING                                              -->
-  <!-- ════════════════════════════════════════════════════════════════ -->
   <div id="phase-translating" class="phase-panel hidden">
     <h2 class="section-title mt-lg">🔄 AI 翻譯進行中</h2>
 
@@ -199,36 +201,40 @@
   <!-- PHASE: GUESSING                                                 -->
   <!-- ════════════════════════════════════════════════════════════════ -->
   <div id="phase-guessing" class="phase-panel hidden">
-    <h2 class="section-title mt-lg">🤔 猜猜看！這是哪一個原文？</h2>
+    <h2 class="section-title mt-md" style="margin-bottom: 8px;">🤔 猜猜看！這是哪一個原文？</h2>
 
-    <!-- Translated text from opponent -->
-    <div class="glass" style="padding: var(--gap-lg); margin-bottom: var(--gap-md);">
-      <span class="label-sm">對方經翻譯後的文本</span>
-      <div id="guess-translated-text" class="review-text mt-sm"></div>
-    </div>
+    <div class="guessing-layout">
+      <!-- Left Column: Translated Text -->
+      <div class="guessing-left">
+        <div class="glass" style="padding: var(--gap-md); display: flex; flex-direction: column; height: 100%; min-height: 300px;">
+          <span class="label-sm">對方經翻譥後的文本</span>
+          <div id="guess-translated-text" class="review-text mt-sm" style="flex: 1; overflow-y: auto; max-height: 280px; font-size: 0.85rem; line-height: 1.5;"></div>
+        </div>
+      </div>
 
-    <p class="text-center text-muted mb-md" style="font-size:0.85rem;">
-      請從下列四個原文中選擇你認為的正確答案
-    </p>
+      <!-- Right Column: Options -->
+      <div class="guessing-right" style="display: flex; flex-direction: column; height: 100%;">
+        <p class="text-muted mb-xs" style="font-size:0.8rem; text-align: left;">
+          請選擇正確答案：
+        </p>
 
-    <div class="guess-grid" id="guess-grid">
-      <!-- Dynamically generated -->
-    </div>
+        <div class="guess-grid compact" id="guess-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; overflow-y: auto; max-height: 250px; padding: 2px;">
+          <!-- Dynamically generated -->
+        </div>
 
-    <div class="confirm-bar">
-      <button class="btn btn-success btn-lg" id="btn-submit-guess" onclick="submitGuess()" disabled>
-        📤 送出答案
-      </button>
-      <div class="opponent-status" id="opponent-guess-status">
-        <div class="pulse-dot amber"></div>
-        <span>對方作答中</span>
+        <div class="confirm-bar mt-sm" style="padding: 8px 0; background: transparent; border-top: none;">
+          <button class="btn btn-success btn-md" id="btn-submit-guess" onclick="submitGuess()" disabled>
+            出送答案
+          </button>
+          <div class="opponent-status" id="opponent-guess-status" style="font-size: 0.78rem;">
+            <div class="pulse-dot amber"></div>
+            <span>對方作答中</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════════════ -->
-  <!-- PHASE: RESULT                                                   -->
-  <!-- ════════════════════════════════════════════════════════════════ -->
   <div id="phase-result" class="phase-panel hidden">
     <h2 class="section-title mt-lg">📊 回合結果</h2>
 
@@ -255,6 +261,18 @@
       <button class="btn btn-primary btn-lg" id="btn-confirm-result" onclick="confirmResult()">
         ✅ 確認結果，進入下一回合
       </button>
+    </div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- PHASE: TERMINATED                                            -->
+  <!-- ========================================================== -->
+  <div id="phase-terminated" class="phase-panel hidden">
+    <div class="glass flex-col" style="padding: 3rem; text-align: center; max-width: 600px; margin: 2rem auto;">
+      <div style="font-size: 4rem; margin-bottom: 1.5rem;">🛑</div>
+      <h2 style="color: var(--red); margin-bottom: 1rem;">遊戲已被終止</h2>
+      <p id="terminate-reason" class="text-muted" style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem;"></p>
+      <div class="text-muted" style="font-size: 0.9rem;">請等待管理員重新開始遊戲。</div>
     </div>
   </div>
 
