@@ -1179,3 +1179,18 @@ input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
   from { transform: scale(0.9) translateY(20px); opacity: 0; }
   to { transform: scale(1) translateY(0); opacity: 1; }
 }
+
+/* Massive Button Styles for Selection and Guessing Confirm Buttons */
+#btn-confirm-selection, #btn-submit-guess {
+  min-width: 380px;
+  padding: 18px 48px;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+  border-radius: var(--r-lg);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all var(--t-mid);
+}
+
+#btn-confirm-selection:hover:not(:disabled), #btn-submit-guess:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+}
