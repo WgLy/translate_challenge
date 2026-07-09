@@ -940,3 +940,70 @@ function stopCountdown() {
         timerEl.style.display = 'none';
     }
 }
+
+
+// ─── BATCH REPLACE MODAL ──────────────────────────────────────────────────────
+
+function openBatchModal() {
+    const minN = gameState.batch_replace_min !== undefined ? gameState.batch_replace_min : 2;
+    const maxN = gameState.batch_replace_max !== undefined ? gameState.batch_replace_max : 5;
+    
+    const targetLabel = document.getElementById('batch-target-label');
+    const replacementLabel = document.getElementById('batch-replacement-label');
+    if (targetLabel) targetLabel.innerText = `\u88ab\u66ff\u63db\u7684\u8a5e\u8a9e (${minN}~${maxN} \u5b57\u5143)`;
+    if (replacementLabel) replacementLabel.innerText = `\u66ff\u63db\u6210\u7684\u65b0\u8a5e (${minN}~${maxN} \u5b57\u5143)`;
+    
+    const targetInput = document.getElementById('batch-target-input');
+    const replacementInput = document.getElementById('batch-replacement-input');
+    if (targetInput) {
+        targetInput.value = '';
+        targetInput.placeholder = `\u8acb\u8f38\u5165\u9577\u5ea6\u70ba ${minN}~${maxN} \u7684\u820a\u8a5e`;
+    }
+    if (replacementInput) {
+        replacementInput.value = '';
+        replacementInput.placeholder = `\u8acb\u8f38\u5165\u9577\u5ea6\u70ba ${minN}~${maxN} \u7684\u65b0\u8a5e`;
+    }
+    
+    const modal = document.getElementById('batch-replace-modal');
+    if (modal) modal.classList.remove('hidden');
+    if (targetInput) targetInput.focus();
+}
+
+function closeBatchModal() {
+    const modal = document.getElementById('batch-replace-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function applyBatchReplace() {
+    const targetInput = document.getElementById('batch-target-input');
+    const replacementInput = document.getElementById('batch-replacement-input');
+    if (!targetInput || !replacementInput) return;
+    
+    const target = targetInput.value.trim();
+    const replacement = replacementInput.value.trim();
+    
+    const minN = gameState.batch_replace_min !== undefined ? gameState.batch_replace_min : 2;
+    const maxN = gameState.batch_replace_max !== undefined ? gameState.batch_replace_max : 5;
+    
+    if (target.length < minN || target.length > maxN) {
+        showToast(`\u88ab\u66ff\u63db\u7684\u8a5e\u8a9e\u9577\u5ea6\u5fc5\u9808\u70ba ${minN}~${maxN} \u5b57\u5143\uff01`, 'warning');
+        return;
+    }
+    if (replacement.length < minN || replacement.length > maxN) {
+        showToast(`\u66ff\u63db\u6210\u7684\u65b0\u8a5e\u9577\u5ea6\u5fc5\u9808\u70ba ${minN}~${maxN} \u5b57\u5143\uff01`, 'warning');
+        return;
+    }
+    
+    socket.emit('apply_skill', {
+        side: mySide,
+        skill: '\u6279\u91cf\u4fee\u6539',
+        params: { target: target, replacement: replacement }
+    });
+    
+    closeBatchModal();
+}
+
+// Expose to window for inline onclick attributes
+window.openBatchModal = openBatchModal;
+window.closeBatchModal = closeBatchModal;
+window.applyBatchReplace = applyBatchReplace;
