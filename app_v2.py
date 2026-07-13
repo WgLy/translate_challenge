@@ -174,6 +174,15 @@ def admin_page():
 def tutorial_page():
     return render_template("tutorial.html")
 
+@app.route("/ai_translate/view")
+def polluted_texts_view():
+    return render_template("view.html")
+
+@app.route("/ai_translate/api/polluted_cards")
+def api_polluted_cards():
+    cards = game_state_v2.get_all_polluted_cards()
+    return jsonify({"cards": cards})
+
 @app.route("/ai_translate/api/status")
 def api_status():
     ollama_ok = ai_service.test_connection()
@@ -238,6 +247,11 @@ def broadcast_state(match_id: str = None):
         
     # Send dict of all states to admin
     socketio.emit("state_update", game_state_v2.get_all_states(), room="admin")
+    
+    # Send all polluted cards to view page
+    socketio.emit("polluted_cards_update", {
+        "cards": game_state_v2.get_all_polluted_cards()
+    }, room="view")
 
 def notify(message: str, type_: str = "info", room: str = "all"):
     if room == "all":
@@ -262,7 +276,7 @@ def handle_join_role(data):
     role = data.get("role", "admin")
     password = data.get("password", "")
     
-    if role == "admin" and password != "admin123":
+    if role == "admin" and password != "qZDpCA1X":
         emit("notification", {"type": "error", "message": "密碼錯誤，拒絕存取"})
         disconnect()
         return
@@ -273,9 +287,31 @@ def handle_join_role(data):
     # Send initial state
     if role == "admin":
         emit("state_update", game_state_v2.get_all_states())
+    elif role == "view":
+        emit("polluted_cards_update", {
+            "cards": game_state_v2.get_all_polluted_cards()
+        })
     elif role in ["team_a", "team_b", "team_c", "team_d", "team_e", "team_f", "team_g", "team_h"]:
         match, side = game_state_v2.get_match_and_side(role)
         emit("state_update", match.get_filtered_state(side))
+
+@socketio.on("delete_polluted_card")
+def handle_delete_polluted_card(data):
+    match_id = data.get("match_id")
+    round_number = data.get("round_number")
+    attacker_label = data.get("attacker_label")
+    game_id = data.get("game_id", "")
+    
+    if not match_id or not round_number or not attacker_label:
+        emit("notification", {"type": "error", "message": "缺少必要參數"})
+        return
+        
+    success = game_state_v2.delete_polluted_card(match_id, int(round_number), attacker_label, game_id)
+    if success:
+        emit("notification", {"type": "success", "message": "卡片已成功刪除"})
+        broadcast_state()
+    else:
+        emit("notification", {"type": "error", "message": "刪除失敗或找不到該卡片"})
 
 
 # ─── Lobby Events ─────────────────────────────────────────────────────────────
@@ -377,7 +413,13 @@ def handle_apply_skill(data):
             current_text = match.get_plain_edited_text(side)
             new_text = ai_service.apply_llm_skill(current_text, skill)
             
+            is_error = False
             if new_text.startswith("[連接錯誤") or new_text.startswith("[逾時錯誤"):
+                is_error = True
+            else:
+                is_error = ai_service.evaluate_translation_error(new_text)
+                
+            if is_error:
                 match.refund_card(side, skill)
                 notify("❌ 技能施放失敗 (AI連線異常)，卡片已退回", "error", room=real_room)
                 broadcast_state(match.match_id)
@@ -804,4 +846,4 @@ if __name__ == "__main__":
         ai_service.USE_OPENROUTER = True
         logger.info("OpenRouter API mode enabled via --api flag.")
 
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)

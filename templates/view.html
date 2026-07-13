@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI 翻譯挑戰賽 V2 — 好文共賞">
+  <title>AI 翻譯挑戰賽 V2 — 好文共賞</title>
+  <!-- Outfit Font for Modern Look -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-card: rgba(30, 41, 59, 0.7);
+      --bg-card-hover: rgba(51, 65, 85, 0.8);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-focus: var(--cyan);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      
+      --cyan: #06b6d4;
+      --cyan-dim: rgba(6, 182, 212, 0.15);
+      --glow-cyan: 0 0 15px rgba(6, 182, 212, 0.35);
+      
+      --pink: #ec4899;
+      --pink-dim: rgba(236, 72, 153, 0.15);
+      
+      --green: #10b981;
+      --green-dim: rgba(16, 185, 129, 0.15);
+      --glow-green: 0 0 15px rgba(16, 185, 129, 0.3);
+      
+      --amber: #f59e0b;
+      --amber-dim: rgba(245, 158, 11, 0.15);
+      --glow-amber: 0 0 15px rgba(245, 158, 11, 0.3);
+      
+      --red: #ef4444;
+      
+      --r-md: 12px;
+      --r-lg: 18px;
+      --t-fast: 0.15s;
+      --t-mid: 0.25s;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 10% 10%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+        radial-gradient(at 90% 90%, rgba(236, 72, 153, 0.05) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      line-height: 1.5;
+    }
+
+    /* ─── Layout ────────────────────────────────────────────────────────────── */
+    
+    .view-container {
+      max-width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      padding: 0;
+    }
+
+    /* ─── Header Section ────────────────────────────────────────────────────── */
+    
+    .view-header {
+      text-align: center;
+      margin-bottom: 0.5rem;
+      max-width: 800px;
+      width: calc(100% - 2rem);
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .view-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff 0%, #a5f3fc 50%, var(--cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .view-subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    /* ─── Controls & Filter Bar ─────────────────────────────────────────────── */
+    
+    .controls-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      border-radius: var(--r-md);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+      max-width: 800px;
+      width: calc(100% - 2rem);
+      margin: 0 auto;
+    }
+
+    .search-input {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 0.75rem 1rem;
+      border-radius: var(--r-md);
+      font-size: 0.95rem;
+      outline: none;
+      transition: all var(--t-fast);
+    }
+
+    .search-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: var(--glow-cyan);
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-tab {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all var(--t-fast);
+    }
+
+    .filter-tab:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .filter-tab.active {
+      background: var(--cyan-dim);
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: var(--glow-cyan);
+    }
+
+    .stats-badge {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.35rem 0.7rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .stats-badge strong {
+      color: var(--cyan);
+    }
+
+    /* ─── Slido Card List ───────────────────────────────────────────────────── */
+    
+    .cards-list {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 1.25rem;
+      overflow-x: auto;
+      padding: 1.5rem 1rem;
+      width: 100%;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .cards-list::-webkit-scrollbar {
+      height: 8px;
+    }
+    .cards-list::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 100px;
+    }
+    .cards-list::-webkit-scrollbar-thumb {
+      background: rgba(6, 182, 212, 0.3);
+      border-radius: 100px;
+      transition: background var(--t-fast);
+    }
+    .cards-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(6, 182, 212, 0.5);
+    }
+
+    .polluted-card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background var(--t-mid), border-color var(--t-mid), transform var(--t-mid);
+      animation: card-appear 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+      width: 340px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-start;
+      align-items: stretch;
+      min-height: 380px;
+      overflow: hidden;
+    }
+
+    .polluted-card.is-revealed {
+      width: 680px;
+    }
+
+    .card-main-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 292px;
+      flex-shrink: 0;
+      height: 100%;
+    }
+
+    .polluted-card.newly-added {
+      animation: card-slide-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      overflow: hidden;
+    }
+
+    @keyframes card-appear {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes card-slide-in {
+      from {
+        width: 0;
+        min-height: 0;
+        padding-left: 0;
+        padding-right: 0;
+        opacity: 0;
+        transform: scale(0.8) translateX(-100px);
+        margin-right: -1.25rem;
+        border-color: transparent;
+      }
+      to {
+        width: 340px;
+        min-height: 380px;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        opacity: 1;
+        transform: scale(1) translateX(0);
+        margin-right: 0;
+      }
+    }
+
+    .polluted-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    /* Card Header */
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      font-size: 0.8rem;
+      padding-right: 1.8rem;
+    }
+
+    .card-delete-btn {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      opacity: 0.4;
+      transition: all var(--t-fast);
+      padding: 4px;
+      line-height: 1;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .card-delete-btn:hover {
+      opacity: 1;
+      color: var(--red);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .meta-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .badge-room {
+      background: var(--cyan-dim);
+      color: var(--cyan);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+    }
+
+    .badge-round {
+      background: var(--pink-dim);
+      color: var(--pink);
+      border: 1px solid rgba(236, 72, 153, 0.2);
+    }
+
+    .direction-info {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .direction-info strong {
+      color: #fff;
+    }
+
+    /* Card Content (Polluted Text) */
+    .card-body {
+      position: relative;
+      padding-left: 1.2rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-body::before {
+      content: "“";
+      position: absolute;
+      left: 0;
+      top: -0.5rem;
+      font-size: 2.2rem;
+      color: var(--cyan);
+      font-family: Georgia, serif;
+      opacity: 0.6;
+    }
+
+    .polluted-text {
+      font-size: 1.15rem;
+      color: #fff;
+      font-weight: 500;
+      line-height: 1.6;
+      word-break: break-all;
+    }
+
+    /* Card Footer / Reveal Action */
+    .card-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .reveal-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--t-fast);
+      border: 1px solid transparent;
+      width: fit-content;
+    }
+
+    /* Locked state styling */
+    .reveal-trigger.locked {
+      background: var(--amber-dim);
+      border-color: rgba(245, 158, 11, 0.2);
+      color: var(--amber);
+      cursor: not-allowed;
+    }
+
+    .reveal-trigger.locked:hover {
+      box-shadow: var(--glow-amber);
+    }
+
+    /* Unlocked state styling */
+    .reveal-trigger.unlocked {
+      background: var(--green-dim);
+      border-color: rgba(16, 185, 129, 0.2);
+      color: var(--green);
+    }
+
+    .reveal-trigger.unlocked:hover {
+      background: rgba(16, 185, 129, 0.25);
+      box-shadow: var(--glow-green);
+      transform: scale(1.02);
+    }
+
+    /* Revealed Details Section */
+    .reveal-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 0 0 0 1.5rem;
+      background: transparent;
+      border: none;
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      margin-left: 1.5rem;
+      width: 292px;
+      flex-shrink: 0;
+      height: 100%;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .polluted-card.is-revealed .reveal-details {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .detail-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .detail-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .detail-val {
+      font-size: 0.95rem;
+      color: #f1f5f9;
+      word-break: break-all;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      color: var(--text-muted);
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Responsive Mobile Overrides for Horizontal/Vertical expansions */
+    @media (max-width: 768px) {
+      .polluted-card.is-revealed {
+        width: 340px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .polluted-card.is-revealed .reveal-details {
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-left: 0;
+        padding-top: 1.5rem;
+        margin-left: 0;
+        margin-top: 1.5rem;
+        width: 100%;
+        opacity: 1;
+      }
+      
+      .reveal-details {
+        width: 100%;
+        padding: 0;
+        margin: 0;
+        border-left: none;
+      }
+    }
+
+    /* ─── Toast System ──────────────────────────────────────────────────────── */
+    
+    #toast-container {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .toast {
+      background: rgba(15, 23, 42, 0.95);
+      border-left: 4px solid var(--amber);
+      color: #fff;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      font-size: 0.9rem;
+      font-weight: 500;
+      animation: toast-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+      backdrop-filter: blur(8px);
+    }
+
+    @keyframes toast-in {
+      from { transform: translateY(50px) scale(0.9); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    .toast.removing {
+      animation: toast-out 0.2s ease-in both;
+    }
+
+    @keyframes toast-out {
+      to { transform: translateX(100px); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="view-container">
+  
+  <!-- Header -->
+  <header class="view-header">
+    <h1 class="view-title">✨ 好文共賞</h1>
+    <p class="view-subtitle">AI 翻譯挑戰賽 V2 — 所有被污染過的翻譯文本一覽</p>
+  </header>
+
+  <!-- Controls panel -->
+  <section class="controls-panel">
+    <input type="text" class="search-input" id="search-input" placeholder="🔍 搜尋被污染的文本或原始答案..." oninput="handleFilterChange()">
+    
+    <div class="filter-row">
+      <div class="filter-tabs" id="filter-tabs">
+        <button class="filter-tab active" data-room="all" onclick="setRoomFilter('all')">全部對戰房</button>
+        <button class="filter-tab" data-room="ab" onclick="setRoomFilter('ab')">A vs B</button>
+        <button class="filter-tab" data-room="cd" onclick="setRoomFilter('cd')">C vs D</button>
+        <button class="filter-tab" data-room="ef" onclick="setRoomFilter('ef')">E vs F</button>
+        <button class="filter-tab" data-room="gh" onclick="setRoomFilter('gh')">G vs H</button>
+      </div>
+      <div class="stats-badge">
+        目前展示：<strong id="stats-count">0</strong> 篇
+      </div>
+    </div>
+  </section>
+
+  <!-- Card List -->
+  <main class="cards-list" id="cards-list">
+    <!-- Cards render here dynamically -->
+  </main>
+
+</div>
+
+<!-- Toast -->
+<div id="toast-container"></div>
+
+<!-- Socket.IO & Logic -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  // Connect socket.io
+  const socket = io({ 
+      path: '/ai_translate/socket.io',
+      transports: ['polling']
+  });
+
+  let cardsData = [];
+  let currentRoomFilter = 'all';
+
+  socket.on('connect', () => {
+      console.log("Joined appreciation room");
+      socket.emit('join_role', { role: 'view' });
+  });
+
+  socket.on('polluted_cards_update', (data) => {
+      console.log("Appreciation update received:", data);
+      cardsData = data.cards || [];
+      renderCards();
+  });
+
+  socket.on('notification', (data) => {
+      console.log("Notification received:", data);
+      if (data.message) {
+          showToast(data.message, data.type === 'error' ? 'warning' : 'info');
+      }
+  });
+
+  function deleteCard(matchId, roundNumber, attackerLabel, gameId) {
+      if (!confirm("確定要刪除這張卡片嗎？")) return;
+      socket.emit("delete_polluted_card", {
+          match_id: matchId,
+          round_number: roundNumber,
+          attacker_label: attackerLabel,
+          game_id: gameId
+      });
+  }
+
+  // Fetch initial data as fallback
+  let isInitialLoad = true;
+  let renderedCardKeys = new Set();
+
+  async function fetchInitialCards() {
+      try {
+          const res = await fetch('/ai_translate/api/polluted_cards');
+          const data = await res.json();
+          cardsData = data.cards || [];
+          renderCards();
+      } catch (e) {
+          console.error("Failed to fetch initial cards:", e);
+      }
+  }
+  fetchInitialCards();
+
+  function setRoomFilter(room) {
+      currentRoomFilter = room;
+      document.querySelectorAll('.filter-tab').forEach(el => {
+          if (el.dataset.room === room) {
+              el.classList.add('active');
+          } else {
+              el.classList.remove('active');
+          }
+      });
+      renderCards();
+  }
+
+  function handleFilterChange() {
+      renderCards();
+  }
+
+  function renderCards() {
+      const container = document.getElementById('cards-list');
+      const searchVal = document.getElementById('search-input').value.trim().toLowerCase();
+      
+      // Filter list
+      const filtered = cardsData.filter(c => {
+          // Room filter
+          if (currentRoomFilter !== 'all' && c.match_id !== currentRoomFilter) {
+              return false;
+          }
+          // Search filter
+          if (searchVal) {
+              const text = (c.translated_text || '').toLowerCase();
+              const orig = (c.original_text || '').toLowerCase();
+              const edited = (c.edited_text || '').toLowerCase();
+              const attacker = (c.attacker_label || '').toLowerCase();
+              return text.includes(searchVal) || orig.includes(searchVal) || edited.includes(searchVal) || attacker.includes(searchVal);
+          }
+          return true;
+      });
+
+      // Update stats count
+      document.getElementById('stats-count').innerText = filtered.length;
+
+      if (filtered.length === 0) {
+          container.innerHTML = `
+              <div class="empty-state" style="width: 100%;">
+                  <div class="empty-icon">📭</div>
+                  <h3>目前尚無符合的污染文本</h3>
+                  <p class="text-muted" style="margin-top:0.5rem;">請等待對戰房進行遊戲並翻譯完成。</p>
+              </div>
+          `;
+          renderedCardKeys.clear();
+          return;
+      }
+
+      const displayCards = [...filtered];
+
+      // Create a set of keys for this render
+      const currentKeys = new Set();
+      const filteredKeys = displayCards.map(c => `${c.match_id}_${c.round_number}_${c.attacker_label}_${c.game_id || ''}`);
+      
+      // 1. Remove elements that are no longer present
+      const cardsInDOM = Array.from(container.children);
+      cardsInDOM.forEach(child => {
+          const key = child.dataset.key;
+          if (key && !filteredKeys.includes(key)) {
+              child.remove();
+          }
+      });
+
+      // If container contains the empty state, clear it
+      if (container.querySelector('.empty-state')) {
+          container.innerHTML = '';
+      }
+
+      // 2. Add or update cards
+      displayCards.forEach((c) => {
+          const key = `${c.match_id}_${c.round_number}_${c.attacker_label}_${c.game_id || ''}`;
+          currentKeys.add(key);
+          
+          let cardEl = container.querySelector(`[data-key="${key}"]`);
+          
+          const roomLabel = (c.match_id || '').toUpperCase();
+          const roundLabel = `R${c.round_number || 1}`;
+          
+          let revealBtnHTML = '';
+          if (c.guess_completed) {
+              revealBtnHTML = `
+                  <button class="reveal-trigger unlocked" onclick="toggleReveal(this)">
+                      👁️ 點擊揭露答案
+                  </button>
+              `;
+          } else {
+              revealBtnHTML = `
+                  <button class="reveal-trigger locked" onclick="showLockedAlert()">
+                      🔒 猜測未完成，不可揭露答案
+                  </button>
+              `;
+          }
+          
+          const cardContentHTML = `
+              <button class="card-delete-btn" onclick="deleteCard('${c.match_id}', ${c.round_number}, '${c.attacker_label}', '${c.game_id || ""}')" title="刪除此卡片">🗑️</button>
+              <div class="card-main-content">
+                  <div class="card-header">
+                      <div class="meta-group">
+                          <span class="badge badge-room">Room ${roomLabel}</span>
+                          <span class="badge badge-round">${roundLabel}</span>
+                      </div>
+                      <div class="direction-info">
+                          <strong>${c.attacker_label || '未知'}</strong> 攻擊 &rarr; <strong>${c.defender_label || '未知'}</strong> 防守
+                      </div>
+                  </div>
+                  <div class="card-body">
+                      <div class="polluted-text">${c.translated_text || ''}</div>
+                  </div>
+                  <div class="card-footer">
+                      ${revealBtnHTML}
+                  </div>
+              </div>
+              <div class="reveal-details">
+                  <div class="detail-row">
+                      <span class="detail-label">🎯 原始答案 (原文)</span>
+                      <div class="detail-val">${c.original_text || '無'}</div>
+                  </div>
+                  <div class="detail-row" style="margin-top: 12px;">
+                      <span class="detail-label">✍️ 技能修改後的原文</span>
+                      <div class="detail-val">${c.edited_text || '無修改 (直接翻譯)'}</div>
+                  </div>
+              </div>
+          `;
+
+          if (!cardEl) {
+              // Create new card
+              cardEl = document.createElement('article');
+              cardEl.dataset.key = key;
+              
+              if (!isInitialLoad && !renderedCardKeys.has(key)) {
+                  cardEl.className = 'polluted-card newly-added';
+                  cardEl.addEventListener('animationend', () => {
+                      cardEl.classList.remove('newly-added');
+                  }, { once: true });
+              } else {
+                  cardEl.className = 'polluted-card';
+              }
+              
+              cardEl.innerHTML = cardContentHTML;
+          } else {
+              // Clear any leftover animation class on subsequent updates
+              cardEl.classList.remove('newly-added');
+              
+              // Card already exists, check if guess_completed changed to update button/details
+              const wasCompleted = cardEl.querySelector('.reveal-trigger').classList.contains('unlocked');
+              if (wasCompleted !== c.guess_completed) {
+                  const isRevealed = cardEl.classList.contains('is-revealed');
+                  
+                  cardEl.innerHTML = cardContentHTML;
+                  
+                  if (isRevealed && c.guess_completed) {
+                      cardEl.classList.add('is-revealed');
+                      const newBtn = cardEl.querySelector('.reveal-trigger');
+                      if (newBtn) newBtn.innerHTML = '👁️ 隱藏答案';
+                  } else {
+                      cardEl.classList.remove('is-revealed');
+                  }
+              }
+          }
+          
+          // Always append to container in sorted order (newest first)
+          container.appendChild(cardEl);
+      });
+      
+      renderedCardKeys = currentKeys;
+      if (filtered.length > 0) {
+          isInitialLoad = false;
+      }
+  }
+
+  function toggleReveal(btn) {
+      const card = btn.closest('.polluted-card');
+      card.classList.toggle('is-revealed');
+      if (card.classList.contains('is-revealed')) {
+          btn.innerHTML = '👁️ 隱藏答案';
+      } else {
+          btn.innerHTML = '👁️ 點擊揭露答案';
+      }
+  }
+
+  function showLockedAlert() {
+      showToast('⚠️ 猜測未完成，不可揭露答案！', 'warning');
+  }
+
+  function showToast(msg, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `<div>${msg}</div>`;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+          toast.classList.add('removing');
+          setTimeout(() => toast.remove(), 300);
+      }, 3000);
+  }
+</script>
+
+</body>
+</html>

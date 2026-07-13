@@ -676,11 +676,22 @@ window.cancelConfirmEdit = function() {
 function updateAdminReviewWait() {
     const oppState = gameState[mySide === 'team_a' ? 'team_b' : 'team_a'];
     
+    const matchIdToLabels = {
+        "ab": ["TEAM A", "TEAM B"],
+        "cd": ["TEAM C", "TEAM D"],
+        "ef": ["TEAM E", "TEAM F"],
+        "gh": ["TEAM G", "TEAM H"]
+    };
+    const currentMatchId = ["a", "b"].includes(pathSide) ? "ab" :
+                         ["c", "d"].includes(pathSide) ? "cd" :
+                         ["e", "f"].includes(pathSide) ? "ef" : "gh";
+    const labels = matchIdToLabels[currentMatchId] || ["TEAM A", "TEAM B"];
+
     ui.review.a.className = gameState.team_a.admin_approved ? 'badge badge-green' : 'badge badge-amber';
-    ui.review.a.innerText = gameState.team_a.admin_approved ? 'Team A: 已通過' : 'Team A: 審核中';
+    ui.review.a.innerText = gameState.team_a.admin_approved ? `${labels[0]}: 已通過` : `${labels[0]}: 審核中`;
     
     ui.review.b.className = gameState.team_b.admin_approved ? 'badge badge-green' : 'badge badge-amber';
-    ui.review.b.innerText = gameState.team_b.admin_approved ? 'Team B: 已通過' : 'Team B: 審核中';
+    ui.review.b.innerText = gameState.team_b.admin_approved ? `${labels[1]}: 已通過` : `${labels[1]}: 審核中`;
 }
 
 // ─── PHASE: GUESSING ─────────────────────────────────────────────────────────
@@ -736,10 +747,7 @@ socket.on('guess_data', (data) => {
     data.options.forEach((opt, idx) => {
         const card = document.createElement('div');
         card.className = 'guess-option glass';
-        card.innerHTML = `
-            <div class="option-label">Option ${idx + 1}</div>
-            <div class="option-text">${opt.original}</div>
-        `;
+        card.innerText = opt.original;
         card.onclick = () => selectGuess(idx, card);
         ui.guess.grid.appendChild(card);
     });

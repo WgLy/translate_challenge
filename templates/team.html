@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="AI 翻譯挑戰賽 V2 — 對稱式雙隊對戰翻譯猜題遊戲">
   <title>AI 翻譯挑戰賽 V2 — 小隊</title>
-  <link rel="stylesheet" href="/ai_translate/dynamic_static/css/base_css">
+  <link rel="stylesheet" href="/ai_translate/dynamic_static/css/base_css?v={{ range(100000) | random }}">
 </head>
 <body>
 
@@ -110,12 +110,12 @@
 
         <div class="glass compact-glass" style="margin-top: 8px;">
           <span class="label-sm">原始文本</span>
-          <div id="edit-original" class="review-text compact-text" style="color: var(--text-muted); font-size: 0.8rem; max-height: 80px; overflow-y: auto; margin-top: 4px;"></div>
+          <div id="edit-original" class="review-text compact-text" style="color: var(--text-muted); font-size: 0.8rem; max-height: 140px; min-height: 90px; overflow-y: auto; margin-top: 4px;"></div>
         </div>
 
         <div class="text-editor glass compact-glass" id="text-editor" style="margin-top: 8px; flex: 1; display: flex; flex-direction: column;">
           <span class="label-sm">編輯後文本（點擊操作）</span>
-          <div class="text-display mt-xs" id="text-display" style="flex: 1; max-height: 250px; overflow-y: auto;">
+          <div class="text-display mt-xs" id="text-display" style="flex: 1; max-height: 500px; min-height: 380px; overflow-y: auto;">
             <!-- Char cells rendered by JS -->
           </div>
         </div>
@@ -124,7 +124,7 @@
       <!-- Right Column: Skills & History -->
       <div class="editing-right">
         <div class="glass compact-glass" style="display: flex; flex-direction: column; gap: 4px;">
-          <span class="label-sm">技能卍牌</span>
+          <span class="label-sm">技能卡牌</span>
           <div class="skill-panel" id="skill-panel" style="gap: 6px; padding: 4px 0;">
             <!-- Dynamically generated -->
           </div>
@@ -133,11 +133,11 @@
 
         <div class="glass compact-glass" style="margin-top: 8px; flex: 1; display: flex; flex-direction: column;">
           <div class="flex items-center justify-between mb-xs">
-            <span class="label-sm">操佝歷史</span>
-            <span class="label-sm" id="action-count" style="font-size: 0.72rem;">0 次操佝</span>
+            <span class="label-sm">操作歷史</span>
+            <span class="label-sm" id="action-count" style="font-size: 0.72rem;">0 次操作</span>
           </div>
-          <div class="action-history compact-history" id="action-history" style="flex: 1; max-height: 150px; overflow-y: auto;">
-            <div class="text-muted text-center" style="font-size:0.75rem; padding:4px;">尚無操佝</div>
+          <div class="action-history compact-history" id="action-history" style="flex: 1; max-height: 380px; min-height: 260px; overflow-y: auto;">
+            <div class="text-muted text-center" style="font-size:0.75rem; padding:4px;">尚無操作</div>
           </div>
         </div>
       </div>
@@ -154,12 +154,12 @@
     </div>
   </div>
 
-  <div id="phase-translating" class="phase-panel hidden">
+  <div id="phase-translating" class="phase-panel hidden" style="max-width: 1000px; margin: 0 auto;">
     <h2 class="section-title mt-lg">🔄 AI 翻譯進行中</h2>
 
     <div class="translation-grid">
       <div class="translation-card glass">
-        <span class="label-sm" style="color:var(--team-a-color)">Team A</span>
+        <span id="trans-label-a" class="label-sm" style="color:var(--team-a-color)">Team A</span>
         <div class="progress-percent" id="trans-percent-a">0%</div>
         <div class="progress-track mt-sm">
           <div class="progress-fill" id="trans-bar-a" style="width:0%"></div>
@@ -167,7 +167,7 @@
         <div class="progress-lang mt-sm" id="trans-lang-a">準備中...</div>
       </div>
       <div class="translation-card glass">
-        <span class="label-sm" style="color:var(--team-b-color)">Team B</span>
+        <span id="trans-label-b" class="label-sm" style="color:var(--team-b-color)">Team B</span>
         <div class="progress-percent" id="trans-percent-b">0%</div>
         <div class="progress-track mt-sm">
           <div class="progress-fill" id="trans-bar-b" style="width:0%"></div>
@@ -185,7 +185,7 @@
   <!-- ════════════════════════════════════════════════════════════════ -->
   <!-- PHASE: ADMIN_REVIEW (team just waits)                           -->
   <!-- ════════════════════════════════════════════════════════════════ -->
-  <div id="phase-admin-review" class="phase-panel hidden">
+  <div id="phase-admin-review" class="phase-panel hidden" style="max-width: 1000px; margin: 0 auto;">
     <div class="waiting-overlay" style="padding-top:60px;">
       <div class="wait-icon">🔍</div>
       <h2 class="section-title">管理員審核中</h2>
@@ -201,41 +201,43 @@
   <!-- PHASE: GUESSING                                                 -->
   <!-- ════════════════════════════════════════════════════════════════ -->
   <div id="phase-guessing" class="phase-panel hidden">
-    <h2 class="section-title mt-md" style="margin-bottom: 8px;">🤔 猜猜看！這是哪一個原文？</h2>
+    <div class="glass flex-col" style="padding: 2.5rem; max-width: 1400px; margin: 0 auto; width: 100%;">
+      <div class="text-center mb-md">
+        <h2>🤔 猜猜看！這是哪一個原文？</h2>
+      </div>
+      <div class="guessing-layout-stacked">
+        <!-- Top: Translated Text Card -->
+        <div class="guessing-translated-container">
+          <div class="glass compact-glass guess-translated-card">
+            <span class="label-sm">對方經翻譯後的文本</span>
+            <div id="guess-translated-text" class="review-text mt-sm"></div>
+          </div>
+        </div>
 
-    <div class="guessing-layout">
-      <!-- Left Column: Translated Text -->
-      <div class="guessing-left">
-        <div class="glass" style="padding: var(--gap-md); display: flex; flex-direction: column; height: 100%; min-height: 300px;">
-          <span class="label-sm">對方經翻譥後的文本</span>
-          <div id="guess-translated-text" class="review-text mt-sm" style="flex: 1; overflow-y: auto; max-height: 280px; font-size: 0.85rem; line-height: 1.5;"></div>
+        <!-- Bottom: Guess Options -->
+        <div class="guessing-options-container">
+          <div class="text-muted mb-xs guess-hint">
+            請選擇正確答案：
+          </div>
+          <div class="guess-grid" id="guess-grid">
+            <!-- Dynamically generated -->
+          </div>
         </div>
       </div>
 
-      <!-- Right Column: Options -->
-      <div class="guessing-right" style="display: flex; flex-direction: column; height: 100%;">
-        <p class="text-muted mb-xs" style="font-size:0.8rem; text-align: left;">
-          請選擇正確答案：
-        </p>
-
-        <div class="guess-grid compact" id="guess-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; overflow-y: auto; max-height: 250px; padding: 2px;">
-          <!-- Dynamically generated -->
-        </div>
-
-        <div class="confirm-bar mt-sm" style="padding: 8px 0; background: transparent; border-top: none;">
-          <button class="btn btn-success btn-md" id="btn-submit-guess" onclick="submitGuess()" disabled>
-            出送答案
-          </button>
-          <div class="opponent-status" id="opponent-guess-status" style="font-size: 0.78rem;">
-            <div class="pulse-dot amber"></div>
-            <span>對方作答中</span>
-          </div>
+      <div class="flex justify-between items-center mt-lg" style="width: 100%; border-top: 1px solid var(--border); padding-top: 1.5rem; gap: 20px;">
+        <button class="btn btn-success btn-md" id="btn-submit-guess" onclick="submitGuess()" disabled style="min-width: 150px;">
+          送出答案
+        </button>
+        <div class="opponent-status" id="opponent-guess-status" style="font-size: 0.78rem;">
+          <div class="pulse-dot amber"></div>
+          <span>對方作答中</span>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="phase-result" class="phase-panel hidden">
+  <div id="phase-result" class="phase-panel hidden" style="max-width: 1000px; margin: 0 auto;">
     <h2 class="section-title mt-lg">📊 回合結果</h2>
 
     <div class="result-grid">

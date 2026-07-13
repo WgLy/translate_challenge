@@ -321,17 +321,24 @@ def apply_llm_skill(text: str, skill_name: str) -> str:
     prompts = {
         "摘要": "請將下列文本進行精簡與摘要，保留核心意義即可。請直接輸出摘要結果，不要加入任何其他說明：",
         "誇飾": "請將下列文本使用誇飾的語氣重新改寫，讓語氣變得極度誇張。請直接輸出改寫結果，不要加入任何其他說明：",
-        "插入名詞": "請在下列文本的任意位置隨機插入一些完全不相干的名詞，讓內容變得荒謬。請直接輸出改寫結果，不要加入任何其他說明：",
+        "插入名詞": "請在下列文本的任意中間位置（不可全部放在最前面或最後面）隨機混入一些完全不相干的名詞，以增加文本的荒謬感。請注意：不要使用任何星號、括號、引號或任何格式標記插入的名詞，讓它們自然融入句子。直接輸出改寫後的完整文本，不要有任何解釋與說明：",
         "混亂語序": "請將下列文本的語序打亂，重新排列字詞，造成語意混亂。請直接輸出改寫結果，不要加入任何其他說明："
     }
     
-    instruction = prompts.get(skill_name, "請重新改寫以下文本，不要加入任何說明：")
+    instruction = prompts.get(skill_name, "請重新改寫以下文本，不要加入 any 說明：")
     prompt = f"{instruction}\n\n文本：\n{text}"
     
     if USE_OPENROUTER:
-        return _call_openrouter(prompt, system_prompt="You are a helpful text rewriting assistant.")
+        res = _call_openrouter(prompt, system_prompt="You are a helpful text rewriting assistant.")
     else:
-        return _call_ollama(prompt, system_prompt="You are a helpful text rewriting assistant.")
+        res = _call_ollama(prompt, system_prompt="You are a helpful text rewriting assistant.")
+        
+    if res:
+        # Sanitize result: strip bold/italic markdown markers and enclosing quotes
+        res = res.replace("**", "").replace("*", "")
+        res = res.strip().strip('"').strip("'")
+        
+    return res
 
 def evaluate_translation_error(text: str) -> bool:
     """

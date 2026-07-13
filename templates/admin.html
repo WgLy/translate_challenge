@@ -73,12 +73,12 @@
           <span id="admin-round">1</span>
         </div>
         <div class="admin-row">
-          <label>Team A 隊伍</label>
+          <label id="admin-team-a-label">Team A 隊伍</label>
           <span id="admin-team-a-id">未設定</span>
           <span id="admin-team-a-ready" class="badge badge-amber">未準備</span>
         </div>
         <div class="admin-row">
-          <label>Team B 隊伍</label>
+          <label id="admin-team-b-label">Team B 隊伍</label>
           <span id="admin-team-b-id">未設定</span>
           <span id="admin-team-b-ready" class="badge badge-amber">未準備</span>
         </div>
@@ -91,7 +91,7 @@
       <div class="lobby-grid">
         <!-- Team A Detail -->
         <div class="glass" style="padding: var(--gap-md);">
-          <span class="label-sm" style="color:var(--team-a-color)">TEAM A</span>
+          <span id="admin-detail-a-label" class="label-sm" style="color:var(--team-a-color)">TEAM A</span>
           <div class="admin-row mt-sm">
             <label>主題</label>
             <span id="admin-topic-a" class="text-muted">—</span>
@@ -107,7 +107,7 @@
         </div>
         <!-- Team B Detail -->
         <div class="glass" style="padding: var(--gap-md);">
-          <span class="label-sm" style="color:var(--team-b-color)">TEAM B</span>
+          <span id="admin-detail-b-label" class="label-sm" style="color:var(--team-b-color)">TEAM B</span>
           <div class="admin-row mt-sm">
             <label>主題</label>
             <span id="admin-topic-b" class="text-muted">—</span>
@@ -135,7 +135,7 @@
       <!-- Team A Review -->
       <div class="review-panel glass mb-md" id="review-panel-a">
         <div class="flex items-center justify-between mb-sm">
-          <span class="label-sm" style="color:var(--team-a-color)">TEAM A 翻譯結果</span>
+          <span id="admin-review-a-label" class="label-sm" style="color:var(--team-a-color)">TEAM A 翻譯結果</span>
           <div class="flex gap-sm">
             <button class="btn btn-success btn-sm" onclick="adminApprove('team_a')">✅ 通過</button>
             <button class="btn btn-danger btn-sm" onclick="adminReject('team_a')">🔄 退回重翻</button>
@@ -155,7 +155,7 @@
       <!-- Team B Review -->
       <div class="review-panel glass mb-md" id="review-panel-b">
         <div class="flex items-center justify-between mb-sm">
-          <span class="label-sm" style="color:var(--team-b-color)">TEAM B 翻譯結果</span>
+          <span id="admin-review-b-label" class="label-sm" style="color:var(--team-b-color)">TEAM B 翻譯結果</span>
           <div class="flex gap-sm">
             <button class="btn btn-success btn-sm" onclick="adminApprove('team_b')">✅ 通過</button>
             <button class="btn btn-danger btn-sm" onclick="adminReject('team_b')">🔄 退回重翻</button>
@@ -216,12 +216,13 @@
           <input type="checkbox" id="toggle-percent-mode" onchange="togglePercentMode(this.checked)" style="width: 20px; height: 20px; cursor: pointer;">
         </div>
         <div id="percent-mode-settings" class="mt-sm hidden" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
-          <span class="label-sm" style="margin-bottom: 4px; display: block;">設定每 100 字所獲技能卡數量（預設 5% 增/刪/改, 2% 搬移, 3% AI）：</span>
+          <span class="label-sm" style="margin-bottom: 4px; display: block;">設定每 100 字所獲技能卡數量（預設 5% 增/刪/改, 2% 搬移, 1% 批量修改, 3% AI）：</span>
           <div class="flex gap-sm flex-wrap" style="font-size: 0.85rem;">
             <label>增字 <input type="number" id="pct-add" value="5" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
             <label>刪字 <input type="number" id="pct-del" value="5" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
             <label>改字 <input type="number" id="pct-rep" value="5" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
             <label>搬移 <input type="number" id="pct-mov" value="2" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
+            <label>批量修改 <input type="number" id="pct-bat" value="1" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
             <label>AI <input type="number" id="pct-ai" value="3" min="1" max="50" style="width: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: #fff; padding: 2px; border-radius: 4px;"></label>
             <button class="btn btn-sm btn-ghost" onclick="applyPercentModeParams()" style="padding: 2px 8px; font-size: 0.78rem;">套用</button>
           </div>

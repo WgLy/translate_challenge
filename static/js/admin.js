@@ -242,6 +242,21 @@ function updateUI() {
     if (labelA) labelA.innerText = labels[0];
     if (labelB) labelB.innerText = labels[1];
 
+    const adminTeamALabel = document.getElementById('admin-team-a-label');
+    const adminTeamBLabel = document.getElementById('admin-team-b-label');
+    if (adminTeamALabel) adminTeamALabel.innerText = `${labels[0]} 隊伍`;
+    if (adminTeamBLabel) adminTeamBLabel.innerText = `${labels[1]} 隊伍`;
+
+    const adminDetailALabel = document.getElementById('admin-detail-a-label');
+    const adminDetailBLabel = document.getElementById('admin-detail-b-label');
+    if (adminDetailALabel) adminDetailALabel.innerText = labels[0];
+    if (adminDetailBLabel) adminDetailBLabel.innerText = labels[1];
+
+    const adminReviewALabel = document.getElementById('admin-review-a-label');
+    const adminReviewBLabel = document.getElementById('admin-review-b-label');
+    if (adminReviewALabel) adminReviewALabel.innerText = `${labels[0]} 翻譯結果`;
+    if (adminReviewBLabel) adminReviewBLabel.innerText = `${labels[1]} 翻譯結果`;
+
     // Team info
     ['team_a', 'team_b'].forEach(side => {
         const d = gameState[side];
@@ -340,6 +355,8 @@ function updateUI() {
         if (delIn && document.activeElement !== delIn) delIn.value = pValues["刪字"] || 5;
         if (repIn && document.activeElement !== repIn) repIn.value = pValues["改字"] || 5;
         if (movIn && document.activeElement !== movIn) movIn.value = pValues["搬移"] || 2;
+        const batIn = document.getElementById('pct-bat');
+        if (batIn && document.activeElement !== batIn) batIn.value = pValues["批量修改"] !== undefined ? pValues["批量修改"] : 1;
         if (aiIn && document.activeElement !== aiIn) aiIn.value = gameState.ai_skill_percent_value || 3;
     }
     
@@ -427,13 +444,29 @@ window.switchTab = function(tabId) {
 };
 
 window.adminApprove = function(side) {
-    if (confirm(`確定通過 ${side} 的翻譯嗎？`)) {
+    const matchIdToLabels = {
+        "ab": ["TEAM A", "TEAM B"],
+        "cd": ["TEAM C", "TEAM D"],
+        "ef": ["TEAM E", "TEAM F"],
+        "gh": ["TEAM G", "TEAM H"]
+    };
+    const labels = matchIdToLabels[currentMatchId] || ["TEAM A", "TEAM B"];
+    const teamLabel = side === 'team_a' ? labels[0] : labels[1];
+    if (confirm(`確定通過 ${teamLabel} 的翻譯嗎？`)) {
         socket.emit('admin_approve', { match_id: currentMatchId, side: side });
     }
 };
 
 window.adminReject = function(side) {
-    if (confirm(`確定退回 ${side} 的翻譯並重新翻譯嗎？`)) {
+    const matchIdToLabels = {
+        "ab": ["TEAM A", "TEAM B"],
+        "cd": ["TEAM C", "TEAM D"],
+        "ef": ["TEAM E", "TEAM F"],
+        "gh": ["TEAM G", "TEAM H"]
+    };
+    const labels = matchIdToLabels[currentMatchId] || ["TEAM A", "TEAM B"];
+    const teamLabel = side === 'team_a' ? labels[0] : labels[1];
+    if (confirm(`確定退回 ${teamLabel} 的翻譯並重新翻譯嗎？`)) {
         socket.emit('admin_reject', { match_id: currentMatchId, side: side });
     }
 };
@@ -479,6 +512,7 @@ window.applyPercentModeParams = function() {
     const delVal = parseInt(document.getElementById('pct-del').value) || 5;
     const repVal = parseInt(document.getElementById('pct-rep').value) || 5;
     const movVal = parseInt(document.getElementById('pct-mov').value) || 2;
+    const batVal = parseInt(document.getElementById('pct-bat').value) || 1;
     const aiVal = parseInt(document.getElementById('pct-ai').value) || 3;
     
     socket.emit('admin_set_skill_percent_mode', {
@@ -488,7 +522,8 @@ window.applyPercentModeParams = function() {
             "增字": addVal,
             "刪字": delVal,
             "改字": repVal,
-            "搬移": movVal
+            "搬移": movVal,
+            "批量修改": batVal
         },
         ai_value: aiVal
     });

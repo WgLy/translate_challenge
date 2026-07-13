@@ -149,6 +149,8 @@ class MatchState:
         self.side_b = side_b
         self.questions = questions
         self.manager = manager
+        self.topic_sequence = []
+        self.game_id = ""
         self._state = {}
         self.reset(full=True)
 
@@ -183,6 +185,11 @@ class MatchState:
 
     def reset(self, full: bool = False):
         with self._lock:
+            if full:
+                self.topic_sequence = []
+                self._clear_match_blacklist()
+                import uuid
+                self.game_id = str(uuid.uuid4())[:8]
             preserved_teams = {} if full else copy.deepcopy(self._state.get("teams", {}))
             preserved_count = 10 if full else self._state.get("translation_count", 10)
             preserved_registry = copy.deepcopy(SKILL_REGISTRY) if full else copy.deepcopy(self._state.get("skill_registry", SKILL_REGISTRY))
@@ -302,6 +309,22 @@ class MatchState:
             s = self._state
             return s[self.side_a]["ready"] and s[self.side_b]["ready"] and s["phase"] == PHASE_LOBBY
 
+    def _generate_topic_sequence(self):
+        groups = {}
+        for q in self.questions:
+            g = q.get("char_group", "medium")
+            groups.setdefault(g, []).append(q)
+            
+        pairs = []
+        for g, q_list in groups.items():
+            shuffled_list = list(q_list)
+            random.shuffle(shuffled_list)
+            for i in range(0, len(shuffled_list) - 1, 2):
+                pairs.append((shuffled_list[i], shuffled_list[i+1]))
+                
+        random.shuffle(pairs)
+        self.topic_sequence = pairs
+
     def start_game(self) -> bool:
         if not self._game_lock.acquire(blocking=False):
             return False # Another game is starting/running
@@ -311,24 +334,29 @@ class MatchState:
                 self._game_lock.release()
                 return False
                 
-            # Group topics by char_group
-            groups = {}
-            for q in self.questions:
-                g = q.get("char_group", "medium")
-                groups.setdefault(g, []).append(q)
-            
-            # Try to pick a group with at least 2 topics
-            eligible_groups = [g for g, topics in groups.items() if len(topics) >= 2]
-            
-            if eligible_groups:
-                chosen_group = random.choice(eligible_groups)
-                chosen_topics = random.sample(groups[chosen_group], 2)
+            if not self.topic_sequence:
+                self._generate_topic_sequence()
+                
+            if self.topic_sequence:
+                chosen_topics = self.topic_sequence.pop(0)
                 self._state[self.side_a]["topic"] = chosen_topics[0]
                 self._state[self.side_b]["topic"] = chosen_topics[1]
             else:
-                # Fallback to random independent selection if no group has 2+ topics
-                for side in (self.side_a, self.side_b):
-                    self._state[side]["topic"] = random.choice(self.questions)
+                # Fallback to random independent selection if not enough to form a pair
+                groups = {}
+                for q in self.questions:
+                    g = q.get("char_group", "medium")
+                    groups.setdefault(g, []).append(q)
+                
+                eligible_groups = [g for g, topics in groups.items() if len(topics) >= 2]
+                if eligible_groups:
+                    chosen_group = random.choice(eligible_groups)
+                    chosen_topics = random.sample(groups[chosen_group], 2)
+                    self._state[self.side_a]["topic"] = chosen_topics[0]
+                    self._state[self.side_b]["topic"] = chosen_topics[1]
+                else:
+                    for side in (self.side_a, self.side_b):
+                        self._state[side]["topic"] = random.choice(self.questions)
                     
             for side in (self.side_a, self.side_b):
                 self._state[side]["selected_text_id"] = None
@@ -379,7 +407,7 @@ class MatchState:
     def _apply_percent_mode_cards(self, side: str, team_id, text_len: int):
         team = self._get_team(team_id)
         if self._state.get("skill_percent_mode"):
-            pcts = self._state.get("skill_percent_values", {"增字": 5, "刪字": 5, "改字": 5, "搬移": 2})
+            pcts = self._state.get("skill_percent_values", {"增字": 5, "刪字": 5, "改字": 5, "搬移": 2, "批量修改": 1})
             for skill, pct in pcts.items():
                 team["cards"][skill] = max(1, round(text_len * pct / 100))
             ai_pct = self._state.get("ai_skill_percent_value", 3)
@@ -779,7 +807,102 @@ class MatchState:
                 self._set_team_score(team_b_id, self._get_team_score(team_b_id) + 1)
 
         self._state["phase"] = PHASE_RESULT
+        self._save_round_to_history()
         self.end_game_lock() # Release lock so next game can start later
+
+    def _save_round_to_history(self):
+        match_labels = {
+            "ab": ["TEAM A", "TEAM B"],
+            "cd": ["TEAM C", "TEAM D"],
+            "ef": ["TEAM E", "TEAM F"],
+            "gh": ["TEAM G", "TEAM H"]
+        }
+        labels = match_labels.get(self.match_id, ["TEAM A", "TEAM B"])
+        state = self._state
+        
+        new_entries = []
+        
+        # Team A as attacker
+        st_a = state["team_a"]
+        if st_a.get("translated_text"):
+            new_entries.append({
+                "match_id": self.match_id,
+                "game_id": self.game_id,
+                "round_number": state["round_number"],
+                "attacker_label": labels[0],
+                "attacker_id": str(st_a.get("team_id") or ""),
+                "defender_label": labels[1],
+                "defender_id": str(state["team_b"].get("team_id") or ""),
+                "original_text": st_a.get("original_text"),
+                "edited_text": "".join(item["char"] for item in st_a.get("edited_text", [])),
+                "translated_text": st_a.get("translated_text")
+            })
+            
+        # Team B as attacker
+        st_b = state["team_b"]
+        if st_b.get("translated_text"):
+            new_entries.append({
+                "match_id": self.match_id,
+                "game_id": self.game_id,
+                "round_number": state["round_number"],
+                "attacker_label": labels[1],
+                "attacker_id": str(st_b.get("team_id") or ""),
+                "defender_label": labels[0],
+                "defender_id": str(state["team_a"].get("team_id") or ""),
+                "original_text": st_b.get("original_text"),
+                "edited_text": "".join(item["char"] for item in st_b.get("edited_text", [])),
+                "translated_text": st_b.get("translated_text")
+            })
+            
+        if not new_entries:
+            return
+            
+        history_path = os.path.join(os.path.dirname(__file__), "data", "polluted_history.json")
+        os.makedirs(os.path.dirname(history_path), exist_ok=True)
+        
+        history_cards = []
+        if os.path.exists(history_path):
+            try:
+                with open(history_path, "r", encoding="utf-8") as f:
+                    history_cards = json.load(f)
+            except Exception as e:
+                logger.error(f"Error reading polluted history: {e}")
+                
+        for entry in new_entries:
+            exists = any(
+                c["match_id"] == entry["match_id"] and 
+                c.get("game_id") == entry["game_id"] and 
+                c["round_number"] == entry["round_number"] and 
+                c["attacker_label"] == entry["attacker_label"] 
+                for c in history_cards
+            )
+            if not exists:
+                history_cards.append(entry)
+                
+        try:
+            with open(history_path, "w", encoding="utf-8") as f:
+                json.dump(history_cards, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Error writing polluted history: {e}")
+
+    def _clear_match_blacklist(self):
+        blacklist_path = os.path.join(os.path.dirname(__file__), "data", "polluted_blacklist.json")
+        if os.path.exists(blacklist_path):
+            try:
+                with open(blacklist_path, "r", encoding="utf-8") as f:
+                    blacklist = json.load(f)
+                
+                # Filter out entries for this match
+                new_blacklist = [
+                    b for b in blacklist
+                    if b.get("match_id") != self.match_id
+                ]
+                
+                if len(new_blacklist) != len(blacklist):
+                    with open(blacklist_path, "w", encoding="utf-8") as f:
+                        json.dump(new_blacklist, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                logger.error(f"Error clearing blacklist for match {self.match_id}: {e}")
 
     def confirm_result(self, side: str) -> bool:
         with self._lock:
@@ -927,5 +1050,163 @@ class GameManager:
 
     def get_all_states(self) -> dict:
         return {mid: m.get_state() for mid, m in self.matches.items()}
+
+    def get_all_polluted_cards(self) -> list:
+        cards = []
+        
+        # Load blacklist
+        blacklist = []
+        blacklist_path = os.path.join(os.path.dirname(__file__), "data", "polluted_blacklist.json")
+        if os.path.exists(blacklist_path):
+            try:
+                with open(blacklist_path, "r", encoding="utf-8") as f:
+                    blacklist = json.load(f)
+            except Exception as e:
+                logger.error(f"Error loading blacklist: {e}")
+
+        def is_blacklisted(m_id, r_num, att_label, g_id=""):
+            try:
+                r_num_int = int(r_num)
+            except (ValueError, TypeError):
+                r_num_int = r_num
+                
+            return any(
+                b.get("match_id") == m_id and 
+                str(b.get("round_number")) == str(r_num_int) and 
+                b.get("attacker_label") == att_label and
+                (not b.get("game_id") or not g_id or b.get("game_id") == g_id)
+                for b in blacklist
+            )
+        
+        # 1. Load historical cards
+        history_path = os.path.join(os.path.dirname(__file__), "data", "polluted_history.json")
+        if os.path.exists(history_path):
+            try:
+                with open(history_path, "r", encoding="utf-8") as f:
+                    history_cards = json.load(f)
+                    for c in history_cards:
+                        if not is_blacklisted(c.get("match_id"), c.get("round_number"), c.get("attacker_label"), c.get("game_id", "")):
+                            c["guess_completed"] = True
+                            cards.append(c)
+            except Exception as e:
+                logger.error(f"Error loading polluted history: {e}")
+                
+        # 2. Add active cards from active matches
+        match_labels = {
+            "ab": ["TEAM A", "TEAM B"],
+            "cd": ["TEAM C", "TEAM D"],
+            "ef": ["TEAM E", "TEAM F"],
+            "gh": ["TEAM G", "TEAM H"]
+        }
+        
+        for match_id, match in self.matches.items():
+            with match._lock:
+                state = match._state
+                phase = state["phase"]
+                
+                if phase in ["TRANSLATING", "ADMIN_REVIEW", "GUESSING", "RESULT"]:
+                    labels = match_labels.get(match_id, ["TEAM A", "TEAM B"])
+                    
+                    # Check Team A as attacker
+                    st_a = state["team_a"]
+                    if st_a.get("translated_text"):
+                        is_dup = any(
+                            c["match_id"] == match_id and 
+                            c.get("game_id") == match.game_id and 
+                            c["round_number"] == state["round_number"] and 
+                            c["attacker_label"] == labels[0]
+                            for c in cards
+                        )
+                        if not is_dup and not is_blacklisted(match_id, state["round_number"], labels[0], match.game_id):
+                            cards.append({
+                                "match_id": match_id,
+                                "game_id": match.game_id,
+                                "round_number": state["round_number"],
+                                "attacker_label": labels[0],
+                                "attacker_id": str(st_a.get("team_id") or ""),
+                                "defender_label": labels[1],
+                                "defender_id": str(state["team_b"].get("team_id") or ""),
+                                "original_text": st_a.get("original_text"),
+                                "edited_text": "".join(item["char"] for item in st_a.get("edited_text", [])),
+                                "translated_text": st_a.get("translated_text"),
+                                "guess_completed": (phase == "RESULT")
+                            })
+                        
+                    # Check Team B as attacker
+                    st_b = state["team_b"]
+                    if st_b.get("translated_text"):
+                        is_dup = any(
+                            c["match_id"] == match_id and 
+                            c.get("game_id") == match.game_id and 
+                            c["round_number"] == state["round_number"] and 
+                            c["attacker_label"] == labels[1]
+                            for c in cards
+                        )
+                        if not is_dup and not is_blacklisted(match_id, state["round_number"], labels[1], match.game_id):
+                            cards.append({
+                                "match_id": match_id,
+                                "game_id": match.game_id,
+                                "round_number": state["round_number"],
+                                "attacker_label": labels[1],
+                                "attacker_id": str(st_b.get("team_id") or ""),
+                                "defender_label": labels[0],
+                                "defender_id": str(state["team_a"].get("team_id") or ""),
+                                "original_text": st_b.get("original_text"),
+                                "edited_text": "".join(item["char"] for item in st_b.get("edited_text", [])),
+                                "translated_text": st_b.get("translated_text"),
+                                "guess_completed": (phase == "RESULT")
+                            })
+                        
+        # Newest first
+        cards.reverse()
+        return cards
+
+    def delete_polluted_card(self, match_id: str, round_number: int, attacker_label: str, game_id: str = "") -> bool:
+        modified = False
+        
+        # 1. Remove from history file
+        history_path = os.path.join(os.path.dirname(__file__), "data", "polluted_history.json")
+        if os.path.exists(history_path):
+            try:
+                with open(history_path, "r", encoding="utf-8") as f:
+                    history_cards = json.load(f)
+                
+                new_cards = [
+                    c for c in history_cards
+                    if not (c.get("match_id") == match_id and 
+                            c.get("round_number") == round_number and 
+                            c.get("attacker_label") == attacker_label and
+                            (not game_id or c.get("game_id") == game_id))
+                ]
+                
+                if len(new_cards) != len(history_cards):
+                    with open(history_path, "w", encoding="utf-8") as f:
+                        json.dump(new_cards, f, indent=2, ensure_ascii=False)
+                    modified = True
+            except Exception as e:
+                logger.error(f"Error deleting from polluted history: {e}")
+                
+        # 2. Add to blacklist to hide it if currently active
+        blacklist_path = os.path.join(os.path.dirname(__file__), "data", "polluted_blacklist.json")
+        blacklist = []
+        if os.path.exists(blacklist_path):
+            try:
+                with open(blacklist_path, "r", encoding="utf-8") as f:
+                    blacklist = json.load(f)
+            except Exception as e:
+                logger.error(f"Error reading polluted blacklist: {e}")
+                
+        key = {"match_id": match_id, "round_number": round_number, "attacker_label": attacker_label, "game_id": game_id}
+        if key not in blacklist:
+            blacklist.append(key)
+            try:
+                os.makedirs(os.path.dirname(blacklist_path), exist_ok=True)
+                with open(blacklist_path, "w", encoding="utf-8") as f:
+                    json.dump(blacklist, f, indent=2, ensure_ascii=False)
+                modified = True
+            except Exception as e:
+                logger.error(f"Error writing polluted blacklist: {e}")
+                
+        return modified
 
 game_state_v2 = GameManager()
